@@ -1,0 +1,3 @@
+MASCOTA: 'El Joker', un arlequín/bufón elegante y moderno, silueta delgada, estilo minimalista vectorial. Traje azul marino oscuro (#1B1A4A) con detalles en turquesa (#4ED8C4) y dorado (#F2B705), corona pequeña estilizada, expresión confiada y carismática (no cómica exagerada). Fondo transparente o sólido oscuro liso. Iluminación suave tipo estudio.
+
+Generar 8 a 12 imágenes con este mismo personaje, cada una en una pose distinta mostrando un producto de Joker (ejemplo: sosteniendo un letrero de neón brillante, señalando un banner desenrollado, mostrando una tarjeta de presentación, con un rollo de vinil, etc.), y guardarlas en esta carpeta nombradas como frame-01.png, frame-02.png, etc.
