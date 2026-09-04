@@ -1,11 +1,15 @@
 function Nosotros() {
   return (
     <section className="page">
-      <h1>Nosotros</h1>
+      <p className="eyebrow">Somos Joker</p>
+      <h1>Hacemos visible tu marca.</h1>
       <p>
-        En Joker convertimos ideas en piezas publicitarias que conectan marcas
-        con personas.
+        Somos un equipo creativo y de producción publicitaria que transforma ideas en
+        piezas capaces de hacerse notar. Trabajamos entre diseño, impresión, estructuras,
+        materiales, máquinas e instalación para llevar una idea desde la pantalla hasta
+        el lugar donde realmente importa: frente a las personas.
       </p>
+      <p className="service-line">Diseñamos · Producimos · Instalamos</p>
     </section>
   )
 }

@@ -5,7 +5,9 @@ import WhatsAppButton from './components/WhatsAppButton'
 import Catalogo from './pages/Catalogo'
 import Contacto from './pages/Contacto'
 import Home from './pages/Home'
+import Letreros from './pages/Letreros'
 import Nosotros from './pages/Nosotros'
+import ProductosFamilia from './pages/ProductosFamilia'
 
 function App() {
   return (
@@ -15,13 +17,16 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/catalogo" element={<Catalogo />} />
+          <Route path="/servicios/letreros" element={<Letreros />} />
+          <Route path="/servicios/:familia" element={<ProductosFamilia />} />
           <Route path="/nosotros" element={<Nosotros />} />
           <Route path="/contacto" element={<Contacto />} />
         </Routes>
       </main>
       <Footer />
       <WhatsAppButton
-        mensaje="Hola, quiero información sobre sus productos publicitarios."
+        servicio="general"
+        origen="floating"
         className="whatsapp-button--floating"
       />
     </div>

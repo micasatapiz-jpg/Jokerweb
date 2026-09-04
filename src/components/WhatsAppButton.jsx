@@ -1,7 +1,13 @@
-const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER
+import { createWhatsAppLink } from '../config/siteConfig'
 
-function WhatsAppButton({ mensaje, texto = 'Cotizar por WhatsApp', className = '' }) {
-  const link = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(mensaje)}`
+function WhatsAppButton({
+  mensaje,
+  servicio = 'general',
+  origen = 'general',
+  texto = 'Cotizar por WhatsApp',
+  className = '',
+}) {
+  const link = createWhatsAppLink({ service: servicio, message: mensaje })
   const classes = ['whatsapp-button', className].filter(Boolean).join(' ')
 
   return (
@@ -11,6 +17,7 @@ function WhatsAppButton({ mensaje, texto = 'Cotizar por WhatsApp', className = '
       target="_blank"
       rel="noreferrer"
       aria-label="Contactar a Joker por WhatsApp"
+      data-contact-source={origen}
     >
       {texto}
     </a>

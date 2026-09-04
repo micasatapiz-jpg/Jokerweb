@@ -18,8 +18,9 @@ function limitar(valor, minimo, maximo) {
   return Math.min(Math.max(valor, minimo), maximo)
 }
 
-function rutaFrame(ruta, numero, digitos = 3) {
-  return `${ruta}/frame-${String(numero).padStart(digitos, '0')}.png`
+function rutaFrame(ruta, numero, digitos = 3, extension = 'webp', version = '') {
+  const cacheVersion = version ? `?v=${version}` : ''
+  return `${ruta}/frame-${String(numero).padStart(digitos, '0')}.${extension}${cacheVersion}`
 }
 
 const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
@@ -27,6 +28,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     secuencias = [],
     modo = 'scroll',
     alturaScroll,
+    sceneCount,
     onSceneChange,
     onProgress,
     children,
@@ -35,7 +37,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 ) {
   const contenedorRef = useRef(null)
   const canvasRef = useRef(null)
-  const flashRef = useRef(null)
+  const transicionRef = useRef(null)
   const frameSolicitadoRef = useRef(0)
   const escenaRef = useRef(0)
   const callbackEscenaRef = useRef(onSceneChange)
@@ -54,11 +56,18 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   const frames = useMemo(() => clips.flatMap((clip) => (
     Array.from(
       { length: clip.cantidad },
-      (_, indice) => rutaFrame(clip.ruta, indice + 1, clip.digitos ?? 3),
+      (_, indice) => rutaFrame(
+        clip.ruta,
+        indice + 1,
+        clip.digitos ?? 3,
+        clip.extension ?? 'webp',
+        clip.version,
+      ),
     )
   )), [clips])
 
   const totalClips = clips.length
+  const totalEscenas = Math.max(sceneCount ?? totalClips + 1, 1)
   const alto = alturaScroll ?? Math.max(totalClips * 360 + 100, 460)
   const cantidadCalentamiento = Math.min(16, frames.length)
 
@@ -80,18 +89,25 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     const contenedor = contenedorRef.current
     const canvas = canvasRef.current
-    const flash = flashRef.current
-    if (!contenedor || !canvas || !flash || !frames.length || !clips.length) return undefined
+    const transicion = transicionRef.current
+    if (!contenedor || !canvas || !transicion || !frames.length || !clips.length) {
+      return undefined
+    }
 
     let vivo = true
     const cache = new Map()
     const pendientes = new Map()
+    const indicesProtegidos = new Set([
+      0,
+      frames.length - 1,
+      ...clips.flatMap((clip) => [clip.inicio, clip.inicio + clip.cantidad - 1]),
+    ])
     const contextoCanvas = canvas.getContext('2d', { alpha: false })
 
     setListo(false)
     setPreparados(0)
 
-    const dibujarImagen = (imagen) => {
+    const dibujarImagen = (imagen, indiceDibujado) => {
       if (!imagen?.naturalWidth || !canvas.width || !canvas.height) return
 
       const ancho = canvas.width
@@ -108,6 +124,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       contextoCanvas.fillStyle = '#111a3c'
       contextoCanvas.fillRect(0, 0, ancho, altoCanvas)
       contextoCanvas.drawImage(imagen, x, y, anchoImagen, altoImagen)
+      canvas.dataset.renderedFrame = String(indiceDibujado + 1)
     }
 
     const tocarCache = (indice) => {
@@ -121,7 +138,10 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     const reducirCache = () => {
       while (cache.size > LIMITE_CACHE) {
         const indiceAntiguo = cache.keys().next().value
-        if (indiceAntiguo === frameSolicitadoRef.current) {
+        if (
+          indiceAntiguo === frameSolicitadoRef.current
+          || indicesProtegidos.has(indiceAntiguo)
+        ) {
           const protegido = cache.get(indiceAntiguo)
           cache.delete(indiceAntiguo)
           cache.set(indiceAntiguo, protegido)
@@ -162,15 +182,17 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     const buscarCercano = (indice) => {
       let mejor = null
+      let posicionMejor = null
       let distanciaMejor = Number.POSITIVE_INFINITY
       cache.forEach((imagen, posicion) => {
         const distancia = Math.abs(posicion - indice)
         if (distancia < distanciaMejor) {
           mejor = imagen
+          posicionMejor = posicion
           distanciaMejor = distancia
         }
       })
-      return mejor
+      return mejor ? { imagen: mejor, posicion: posicionMejor } : null
     }
 
     const precargarEntorno = (indice) => {
@@ -186,13 +208,15 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       canvas.dataset.frame = String(indiceSeguro + 1)
 
       const disponible = tocarCache(indiceSeguro)
-      if (disponible) dibujarImagen(disponible)
+      if (disponible) dibujarImagen(disponible, indiceSeguro)
       else {
         const cercano = buscarCercano(indiceSeguro)
-        if (cercano) dibujarImagen(cercano)
+        if (cercano) dibujarImagen(cercano.imagen, cercano.posicion)
         cargarFrame(indiceSeguro)
           .then((imagen) => {
-            if (vivo && frameSolicitadoRef.current === indiceSeguro) dibujarImagen(imagen)
+            if (vivo && frameSolicitadoRef.current === indiceSeguro) {
+              dibujarImagen(imagen, indiceSeguro)
+            }
           })
           .catch(() => {})
       }
@@ -202,11 +226,11 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     const ajustarCanvas = () => {
       const limites = canvas.getBoundingClientRect()
-      const densidad = Math.min(window.devicePixelRatio || 1, 1.5)
+      const densidad = Math.min(window.devicePixelRatio || 1, 2)
       canvas.width = Math.max(Math.round(limites.width * densidad), 1)
       canvas.height = Math.max(Math.round(limites.height * densidad), 1)
       const imagen = tocarCache(frameSolicitadoRef.current)
-      if (imagen) dibujarImagen(imagen)
+      if (imagen) dibujarImagen(imagen, frameSolicitadoRef.current)
     }
 
     const actualizar = (progreso) => {
@@ -221,28 +245,29 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
       mostrarFrame(indiceFrame)
 
-      const unionCercana = Math.round(posicionGlobal)
-      const esUnionInterna = unionCercana > 0 && unionCercana < totalClips
-      const distanciaUnion = esUnionInterna
-        ? Math.abs(posicionGlobal - unionCercana)
-        : Number.POSITIVE_INFINITY
-      const anchoUnion = .075
-      const cobertura = limitar(1 - distanciaUnion / anchoUnion, 0, 1)
+      const union = Math.round(posicionGlobal)
+      const unionInterna = union > 0 && union < totalClips
+      const distancia = unionInterna ? posicionGlobal - union : Number.POSITIVE_INFINITY
+      const anchoBarrido = .085
 
-      if (cobertura > 0) {
-        const lado = posicionGlobal < unionCercana ? -1 : 1
-        gsap.set(flash, {
+      if (Math.abs(distancia) <= anchoBarrido) {
+        const fase = distancia / anchoBarrido
+        const izquierda = fase <= 0 ? 0 : fase * 100
+        const derecha = fase <= 0 ? -fase * 100 : 0
+        transicion.dataset.transition = String(union)
+        gsap.set(transicion, {
           autoAlpha: 1,
-          xPercent: lado * (1 - cobertura) * 118,
-          scaleX: 1.18 + cobertura * .08,
-          scaleY: 1.08,
-          rotate: lado * (1 - cobertura) * 2,
+          clipPath: `inset(0 ${derecha}% 0 ${izquierda}%)`,
+          '--transition-word-x': `${fase * 7}%`,
         })
       } else {
-        gsap.set(flash, { autoAlpha: 0 })
+        gsap.set(transicion, { autoAlpha: 0 })
       }
 
-      notificarEscena(Math.min(Math.round(posicionGlobal), totalClips))
+      notificarEscena(Math.min(
+        Math.round(progresoSeguro * (totalEscenas - 1)),
+        totalEscenas - 1,
+      ))
       callbackProgresoRef.current?.(progresoSeguro)
     }
 
@@ -254,7 +279,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       ...clips.map((clip) => clip.inicio),
     ]
     const esencialesUnicos = [...new Set(esenciales)]
-    cargarFrame(0).then((imagen) => dibujarImagen(imagen)).catch(() => {})
+    cargarFrame(0).then((imagen) => dibujarImagen(imagen, 0)).catch(() => {})
     Promise.all(esencialesUnicos.map((indice) => (
       cargarFrame(indice)
         .then(() => setPreparados((valor) => valor + 1))
@@ -267,7 +292,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     if (movimientoReducido) {
       const ultimoIndice = frames.length - 1
       mostrarFrame(ultimoIndice)
-      notificarEscena(totalClips)
+      notificarEscena(totalEscenas - 1)
       callbackProgresoRef.current?.(1)
 
       return () => {
@@ -294,32 +319,65 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       }
     }
 
+    let progresoObjetivo = 0
+    let progresoVisible = 0
+    let animacionFrame = 0
+
+    const animarHaciaObjetivo = () => {
+      const distancia = progresoObjetivo - progresoVisible
+      if (Math.abs(distancia) < .00012) {
+        progresoVisible = progresoObjetivo
+        actualizar(progresoVisible)
+        animacionFrame = 0
+        return
+      }
+
+      progresoVisible += distancia * .34
+      actualizar(progresoVisible)
+      animacionFrame = window.requestAnimationFrame(animarHaciaObjetivo)
+    }
+
+    const sincronizarScroll = (progreso, inmediato = false) => {
+      progresoObjetivo = limitar(progreso, 0, 1)
+      const esExtremo = progresoObjetivo === 0 || progresoObjetivo === 1
+
+      if (inmediato || esExtremo) {
+        if (animacionFrame) window.cancelAnimationFrame(animacionFrame)
+        animacionFrame = 0
+        progresoVisible = progresoObjetivo
+        actualizar(progresoVisible)
+        return
+      }
+
+      if (!animacionFrame) {
+        animacionFrame = window.requestAnimationFrame(animarHaciaObjetivo)
+      }
+    }
+
     const contextoGsap = gsap.context(() => {
-      const cabezal = { progreso: 0 }
-      gsap.to(cabezal, {
-        progreso: 1,
-        ease: 'none',
-        onUpdate: () => actualizar(cabezal.progreso),
-        scrollTrigger: {
-          trigger: contenedor,
-          start: 'top top',
-          end: 'bottom bottom',
-          scrub: .42,
-          invalidateOnRefresh: true,
-          onRefresh: (instancia) => actualizar(instancia.progress),
-        },
+      ScrollTrigger.create({
+        trigger: contenedor,
+        start: 'top top',
+        end: 'bottom bottom',
+        invalidateOnRefresh: true,
+        onUpdate: (instancia) => sincronizarScroll(instancia.progress),
+        onRefresh: (instancia) => sincronizarScroll(instancia.progress, true),
+        onLeave: () => sincronizarScroll(1, true),
+        onEnterBack: (instancia) => sincronizarScroll(instancia.progress),
+        onLeaveBack: () => sincronizarScroll(0, true),
       })
     }, contenedor)
 
     return () => {
       vivo = false
+      if (animacionFrame) window.cancelAnimationFrame(animacionFrame)
       window.removeEventListener('resize', ajustarCanvas)
       contextoGsap.revert()
       cache.forEach((imagen) => { imagen.src = '' })
       cache.clear()
       pendientes.clear()
     }
-  }, [cantidadCalentamiento, clips, frames, modo, notificarEscena, totalClips])
+  }, [cantidadCalentamiento, clips, frames, modo, notificarEscena, totalClips, totalEscenas])
 
   const totalPreparacion = Math.min(cantidadCalentamiento + Math.max(totalClips - 1, 0), frames.length)
 
@@ -337,7 +395,9 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
           aria-label="Mascota Joker animada fotograma por fotograma con el desplazamiento"
         />
 
-        <div ref={flashRef} className="image-sequence__spray-flash" aria-hidden="true" />
+        <div ref={transicionRef} className="image-sequence__transition" aria-hidden="true">
+          <span>JOKER</span>
+        </div>
 
         {!listo && (
           <div className="image-sequence__loading" role="status" aria-live="polite">

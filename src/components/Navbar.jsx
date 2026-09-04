@@ -4,7 +4,7 @@ import WhatsAppButton from './WhatsAppButton'
 
 const links = [
   { to: '/', label: 'Inicio' },
-  { to: '/catalogo', label: 'Catálogo' },
+  { to: '/catalogo', label: 'Servicios' },
   { to: '/nosotros', label: 'Nosotros' },
   { to: '/contacto', label: 'Contacto' },
 ]
@@ -54,7 +54,8 @@ function Navbar() {
         </nav>
 
         <WhatsAppButton
-          mensaje="Hola, quiero información sobre sus servicios"
+          servicio="general"
+          origen="header"
           texto="Cotizar"
           className="navbar__quote"
         />

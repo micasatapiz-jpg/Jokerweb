@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app'
+import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 
 // Completa estas variables en un archivo .env local usando .env.example como guía.
@@ -11,7 +11,7 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-const app = initializeApp(firebaseConfig)
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 
 export const db = getFirestore(app)
 export default app
