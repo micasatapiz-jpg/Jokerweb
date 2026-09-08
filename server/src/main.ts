@@ -33,7 +33,11 @@ async function bootstrap() {
     const expected = createHash('sha256').update(`Basic ${Buffer.from(`${pilotUser}:${pilotPassword}`).toString('base64')}`).digest()
     server.addHook('onRequest', async (request, reply) => {
       const path = request.url.split('?')[0]
-      if (path === '/api/health' || path === '/api/channels/whatsapp/webhook') return
+      if (
+  path === '/api/health' ||
+  path === '/api/channels/whatsapp/webhook' ||
+  path === '/politica-privacidad'
+) return
       const actual = createHash('sha256').update(request.headers.authorization ?? '').digest()
       if (!timingSafeEqual(expected, actual)) {
         return reply.code(401).header('WWW-Authenticate', 'Basic realm="Joker piloto", charset="UTF-8"').send({ message: 'Acceso privado de pruebas.' })
