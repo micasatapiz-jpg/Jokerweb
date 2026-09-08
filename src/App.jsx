@@ -14,6 +14,7 @@ import Nosotros from './pages/Nosotros'
 import PanelCotizaciones from './pages/PanelCotizaciones'
 import ProductosFamilia from './pages/ProductosFamilia'
 import PropuestaVisual from './pages/PropuestaVisual'
+import PoliticaPrivacidad from './pages/PoliticaPrivacidad'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -46,6 +47,7 @@ function App() {
           <Route path="/app" element={<PanelCotizaciones />} />
           <Route path="/app/precios" element={<ConfigurarPrecios />} />
           <Route path="/app/cotizaciones/:id" element={<DetalleCotizacion />} />
+          <Route path="/politica-privacidad" element={<PoliticaPrivacidad />} />
         </Routes>
       </main>
       {!isSalesApp && <Footer />}
