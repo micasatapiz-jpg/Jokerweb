@@ -1,119 +1,103 @@
 import { Link } from 'react-router-dom'
-import ProductTurntable from '../components/ProductTurntable'
+import EditorialProductGallery from '../components/EditorialProductGallery'
+import HeroProductCarousel from '../components/HeroProductCarousel'
 import WhatsAppButton from '../components/WhatsAppButton'
-import bastidorPublicitario from '../assets/productos/letreros/bastidor-publicitario-v2.png'
-import cajaLuz from '../assets/productos/letreros/caja-luz-v2.png'
-import fachadaComercial from '../assets/productos/letreros/fachada-comercial-v2.png'
-import letreroAcrilico from '../assets/productos/letreros/letrero-acrilico-v2.png'
-import retroiluminado from '../assets/productos/letreros/retroiluminado-v2.png'
-import letrerosHero from '../assets/heroes/letreros.png'
+import bastidorPublicitario from '../assets/productos/letreros/bastidor-publicitario-photo-v1.webp'
+import cajaLuz from '../assets/productos/letreros/caja-luz-photo-v1.webp'
+import fachadaComercial from '../assets/productos/letreros/fachada-comercial-photo-v1.webp'
+import letreroAcrilico from '../assets/productos/letreros/letrero-acrilico-photo-v1.webp'
+import letrasCorporeas from '../assets/productos/letreros/letras-corporeas-led-photo-v1.webp'
+import retroiluminado from '../assets/productos/letreros/retroiluminado-photo-v1.webp'
 
 const productos = [
   {
     nombre: 'Letras corpóreas LED',
     descripcion: 'Frente acrílico translúcido, cuerpo con volumen e iluminación LED uniforme.',
-    estado: 'Vista interactiva disponible',
-    activo: true,
+    imagen: letrasCorporeas,
+    detalle: 'Volumen · Acrílico · Iluminación LED',
+    colorA: '#5a2d92',
+    colorB: '#22d3c5',
   },
   {
     nombre: 'Cajas de luz',
     descripcion: 'Gabinetes luminosos para fachadas, interiores y puntos de venta.',
     imagen: cajaLuz,
     detalle: 'Iluminación uniforme · Interior o exterior',
+    colorA: '#f2b705',
+    colorB: '#d55a2a',
   },
   {
     nombre: 'Letreros en acrílico',
     descripcion: 'Placas y letras cortadas con acabado limpio, moderno y durable.',
     imagen: letreroAcrilico,
     detalle: 'Corte de precisión · Acabado premium',
+    colorA: '#3c8fba',
+    colorB: '#6fe0d0',
   },
   {
     nombre: 'Retroiluminados',
     descripcion: 'Letras separadas del muro para crear un halo de luz elegante.',
     imagen: retroiluminado,
     detalle: 'Halo posterior · Luz cálida o fría',
+    colorA: '#d68a34',
+    colorB: '#623ca4',
   },
   {
     nombre: 'Bastidores publicitarios',
     descripcion: 'Estructuras resistentes para montar gráficas y señalización de gran formato.',
     imagen: bastidorPublicitario,
     detalle: 'Estructura modular · Gráfica reemplazable',
+    colorA: '#e85f52',
+    colorB: '#304d94',
   },
   {
     nombre: 'Fachadas comerciales',
     descripcion: 'Composición integral de revestimiento, identidad, volumen e iluminación.',
     imagen: fachadaComercial,
     detalle: 'Diseño integral · Fabricación e instalación',
+    colorA: '#4ed8c4',
+    colorB: '#1b1a4a',
   },
 ]
 
 function Letreros() {
+  const family = {
+    slug: 'letreros',
+    eyebrow: 'Letreros luminosos',
+    products: productos.map((producto) => ({
+      name: producto.nombre,
+      description: `${producto.descripcion} ${producto.detalle}.`,
+      image: producto.imagen,
+      colorA: producto.colorA,
+      colorB: producto.colorB,
+    })),
+  }
+
   return (
     <div className="signs-page">
-      <header className="signs-hero">
-        <div className="signs-hero__sticky">
-          <div className="signs-hero__copy" style={{ '--hero-image': `url(${letrerosHero})` }}>
-            <Link to="/catalogo" className="signs-back">← Volver a servicios</Link>
-            <p className="eyebrow">Letreros luminosos y publicitarios</p>
-            <h1>Tu marca, visible desde todos los ángulos.</h1>
-            <p>
-              Diseñamos y fabricamos letreros con estructura, volumen e iluminación pensados
-              para que tu negocio destaque de día y de noche.
-            </p>
+      <header className="signs-hero signs-hero--editorial">
+        <div className="signs-hero__copy">
+          <Link to="/catalogo" className="signs-back">← Volver a servicios</Link>
+          <p className="eyebrow">Letreros luminosos y publicitarios</p>
+          <h1>Tu marca, visible desde todos los ángulos.</h1>
+          <p>Letreros con volumen e iluminación para destacar de día y de noche.</p>
+          <div className="signs-hero__actions">
             <WhatsAppButton
               servicio="letreros"
-              origen="letreros-360"
+              origen="letreros-catalogo"
               texto="Cotizar un letrero"
             />
+            <a href="#productos-letreros">Ver productos <span aria-hidden="true">↓</span></a>
           </div>
-
-          <div className="signs-hero__viewer">
-            <ProductTurntable
-              ruta="/sequences/letrero-joker-led"
-              cantidad={180}
-              nombre="Letrero corpóreo LED Joker"
-              modo="scroll"
-            />
-            <div className="signs-specs" aria-label="Características del producto">
-              <span>360°</span>
-              <span>Acrílico</span>
-              <span>LED animado</span>
-              <span>Metal</span>
-            </div>
-          </div>
+        </div>
+        <div className="signs-hero__visual">
+          <HeroProductCarousel products={productos} label="Productos de letreros destacados" />
         </div>
       </header>
 
-      <section className="signs-products" aria-labelledby="signs-products-title">
-        <div className="section-heading">
-          <div>
-            <p className="section-kicker">Familia de productos</p>
-            <h2 id="signs-products-title">Una solución para cada fachada.</h2>
-          </div>
-          <p>La primera vista 360° ya está disponible. Las siguientes se incorporarán progresivamente.</p>
-        </div>
-
-        <div className="signs-products__grid">
-          {productos.map((producto, indice) => (
-            <article
-              key={producto.nombre}
-              className={producto.activo ? 'sign-product sign-product--active' : 'sign-product'}
-            >
-              {producto.imagen && (
-                <figure className="sign-product__visual">
-                  <img src={producto.imagen} alt={producto.nombre} loading="lazy" />
-                </figure>
-              )}
-              <div className="sign-product__content">
-                <span>{String(indice + 1).padStart(2, '0')}</span>
-                <h3>{producto.nombre}</h3>
-                <p>{producto.descripcion}</p>
-                <small>{producto.estado ?? producto.detalle}</small>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      <div id="productos-letreros">
+        <EditorialProductGallery family={family} />
+      </div>
     </div>
   )
 }

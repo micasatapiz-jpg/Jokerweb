@@ -1,0 +1,10 @@
+**/node_modules
+**/.env
+**/.env.*
+**/dist
+**/uploads
+.git
+scripts/.frame-tools
+**/__pycache__
+**/*.log
+server/src/generated

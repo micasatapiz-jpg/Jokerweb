@@ -25,6 +25,6 @@ export async function subirImagen(archivo) {
 
   const data = await response.json()
 
-  // Esta URL es la que debe guardarse en imagenUrl del producto en Firestore.
+  // Esta URL puede guardarse desde el backend junto con los datos del producto.
   return data.secure_url
 }

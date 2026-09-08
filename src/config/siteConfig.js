@@ -1,3 +1,10 @@
+import eventosImage from '../assets/heroes/eventos-photo-v1.webp'
+import granFormatoImage from '../assets/heroes/gran-formato-photo-v1.webp'
+import letrerosImage from '../assets/heroes/letreros-photo-v1.webp'
+import letras3dImage from '../assets/heroes/letras-3d-photo-v1.webp'
+import senaleticaImage from '../assets/heroes/senaletica-photo-v1.webp'
+import vinilesImage from '../assets/heroes/viniles-photo-v1.webp'
+
 export const siteConfig = {
   brandName: 'Joker',
   whatsappNumber: '51972044482',
@@ -37,6 +44,7 @@ export const serviceFamilies = [
     includes: ['LED', 'Cajas de luz', 'Acrílico', 'Retroiluminados', 'Bastidores', 'Fachadas'],
     cta: 'Cotizar letrero',
     message: whatsappMessages.letreros,
+    image: letrerosImage,
     detailPath: '/servicios/letreros',
     featured: true,
   },
@@ -48,6 +56,7 @@ export const serviceFamilies = [
     includes: ['Acrílico', 'PVC', 'MDF', 'Metal', 'Iluminadas', 'Retroiluminadas'],
     cta: 'Cotizar letras 3D',
     message: whatsappMessages.letras3d,
+    image: letras3dImage,
     detailPath: '/servicios/letras-3d',
     featured: true,
   },
@@ -59,6 +68,7 @@ export const serviceFamilies = [
     includes: ['Banners', 'Gigantografías', 'Campañas', 'Eventos', 'Fachadas', 'Gran formato'],
     cta: 'Cotizar impresión',
     message: whatsappMessages.granFormato,
+    image: granFormatoImage,
     detailPath: '/servicios/gran-formato',
     featured: true,
   },
@@ -70,6 +80,7 @@ export const serviceFamilies = [
     includes: ['Adhesivo', 'Microperforado', 'Transparente', 'Vitrinas', 'Muros', 'Rotulado'],
     cta: 'Cotizar vinil',
     message: whatsappMessages.viniles,
+    image: vinilesImage,
     detailPath: '/servicios/viniles',
     featured: true,
   },
@@ -81,6 +92,7 @@ export const serviceFamilies = [
     includes: ['Comercial', 'Corporativa', 'Informativa', 'Interior', 'Exterior'],
     cta: 'Cotizar señalética',
     message: whatsappMessages.senaletica,
+    image: senaleticaImage,
     detailPath: '/servicios/senaletica',
   },
   {
@@ -91,6 +103,7 @@ export const serviceFamilies = [
     includes: ['Roll screen', 'Backing', 'Displays', 'Paneles', 'Elementos promocionales'],
     cta: 'Cotizar evento',
     message: whatsappMessages.eventos,
+    image: eventosImage,
     detailPath: '/servicios/eventos',
   },
 ]

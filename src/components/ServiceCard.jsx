@@ -7,8 +7,13 @@ function ServiceCard({ service, compact = false }) {
       id={service.id}
       className={`service-card ${service.featured ? 'service-card--featured' : ''} ${compact ? 'service-card--compact' : ''}`}
     >
+      {service.image && (
+        <figure className="service-card__media" aria-hidden="true">
+          <img src={service.image} alt="" loading="lazy" decoding="async" />
+        </figure>
+      )}
       <span className="service-card__number">{service.number}</span>
-      <div>
+      <div className="service-card__body">
         <h3>{service.title}</h3>
         <p>{service.description}</p>
         <ul aria-label={`Aplicaciones de ${service.title}`}>

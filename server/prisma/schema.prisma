@@ -1,0 +1,349 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum QuoteStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum AIProviderType {
+  OLLAMA
+  OPENAI
+}
+
+enum AIInteractionStatus {
+  SUCCESS
+  INVALID_OUTPUT
+  ERROR
+}
+
+enum VisualProposalStatus {
+  ANALYZED
+  GENERATED
+  ERROR
+}
+
+enum VisualProposalMode {
+  NEUTRAL
+  CONTEXTUAL
+}
+
+enum ProductPricingMode {
+  CUSTOM_COMPLEX
+  FIXED
+}
+
+enum ConversationChannel {
+  WEB
+  WHATSAPP
+}
+
+enum ConversationStatus {
+  COLLECTING
+  READY_TO_QUOTE
+  QUOTING
+  QUOTED
+  HANDOFF
+  CLOSED
+  ERROR
+}
+
+enum ConversationMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum ConversationMessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+  SYSTEM
+}
+
+enum ConversationMessageStatus {
+  RECEIVED
+  BUFFERED
+  PROCESSED
+  SENT
+  FAILED
+}
+
+model Tenant {
+  id              String           @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String           @unique
+  currency        String           @default("PEN")
+  igvPercent      Decimal          @default(18) @db.Decimal(5, 2)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  users           User[]
+  customers       Customer[]
+  products        Product[]
+  priceRules      PriceRule[]
+  quotes          Quote[]
+  attachments     Attachment[]
+  aiInteractions  AIInteraction[]
+  visualProposals VisualProposal[]
+  conversations   Conversation[]
+  auditLogs       AuditLog[]
+}
+
+model User {
+  id        String     @id @default(uuid()) @db.Uuid
+  tenantId  String     @db.Uuid
+  email     String
+  name      String
+  role      String     @default("OWNER")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  auditLogs AuditLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  name      String
+  phone     String?
+  email     String?
+  company   String?
+  district  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quotes    Quote[]
+
+  @@index([tenantId, name])
+}
+
+model Product {
+  id          String             @id @default(uuid()) @db.Uuid
+  tenantId    String             @db.Uuid
+  name        String
+  slug        String
+  category    String
+  description String?
+  unit        String             @default("unidad")
+  isActive    Boolean            @default(true)
+  pricingMode ProductPricingMode @default(CUSTOM_COMPLEX)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  priceRules  PriceRule[]
+  quoteItems  QuoteItem[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, category])
+}
+
+model Conversation {
+  id                   String                @id @default(uuid()) @db.Uuid
+  tenantId             String                @db.Uuid
+  channel              ConversationChannel
+  externalId           String
+  customerName         String?
+  customerPhone        String?
+  status               ConversationStatus    @default(COLLECTING)
+  greetedAt            DateTime?
+  spacePhotoAskedAt    DateTime?
+  spacePhotoDeclinedAt DateTime?
+  lastInboundAt        DateTime?
+  lastProcessedAt      DateTime?
+  context              Json                  @default("{}")
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages             ConversationMessage[]
+
+  @@unique([tenantId, channel, externalId])
+  @@index([tenantId, status, lastInboundAt])
+}
+
+model ConversationMessage {
+  id                String                       @id @default(uuid()) @db.Uuid
+  conversationId    String                       @db.Uuid
+  externalMessageId String?
+  direction         ConversationMessageDirection
+  type              ConversationMessageType
+  text              String?
+  mediaId           String?
+  mimeType          String?
+  fileName          String?
+  status            ConversationMessageStatus    @default(RECEIVED)
+  processedAt       DateTime?
+  payload           Json?
+  createdAt         DateTime                     @default(now())
+  conversation      Conversation                 @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, externalMessageId])
+  @@index([conversationId, direction, status, createdAt])
+}
+
+model PriceRule {
+  id                  String      @id @default(uuid()) @db.Uuid
+  tenantId            String      @db.Uuid
+  productId           String      @db.Uuid
+  name                String
+  basePrice           Decimal     @default(0) @db.Decimal(12, 2)
+  pricePerSquareMeter Decimal     @default(0) @db.Decimal(12, 2)
+  designFee           Decimal     @default(0) @db.Decimal(12, 2)
+  installationFee     Decimal     @default(0) @db.Decimal(12, 2)
+  transportFee        Decimal     @default(0) @db.Decimal(12, 2)
+  marginPercent       Decimal     @default(0) @db.Decimal(5, 2)
+  igvPercent          Decimal     @default(18) @db.Decimal(5, 2)
+  isDemo              Boolean     @default(true)
+  isActive            Boolean     @default(true)
+  validFrom           DateTime    @default(now())
+  validUntil          DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  tenant              Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product             Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quoteItems          QuoteItem[]
+
+  @@index([tenantId, productId, isActive])
+}
+
+model Quote {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenantId          String           @db.Uuid
+  customerId        String           @db.Uuid
+  number            String
+  status            QuoteStatus      @default(DRAFT)
+  sourceText        String?
+  notes             String?
+  designBrief       String?
+  installationNotes String?
+  serviceAddress    String?
+  currency          String           @default("PEN")
+  subtotal          Decimal          @default(0) @db.Decimal(12, 2)
+  discount          Decimal          @default(0) @db.Decimal(12, 2)
+  tax               Decimal          @default(0) @db.Decimal(12, 2)
+  total             Decimal          @default(0) @db.Decimal(12, 2)
+  validUntil        DateTime?
+  approvedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer          Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items             QuoteItem[]
+  attachments       Attachment[]
+  aiInteractions    AIInteraction[]
+  visualProposals   VisualProposal[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status, createdAt])
+}
+
+model QuoteItem {
+  id               String     @id @default(uuid()) @db.Uuid
+  quoteId          String     @db.Uuid
+  productId        String     @db.Uuid
+  priceRuleId      String?    @db.Uuid
+  description      String
+  quantity         Decimal    @default(1) @db.Decimal(10, 2)
+  widthM           Decimal?   @db.Decimal(10, 3)
+  heightM          Decimal?   @db.Decimal(10, 3)
+  areaM2           Decimal?   @db.Decimal(12, 4)
+  unitPrice        Decimal    @db.Decimal(12, 2)
+  subtotal         Decimal    @db.Decimal(12, 2)
+  pricingBreakdown Json
+  createdAt        DateTime   @default(now())
+  quote            Quote      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product          Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  priceRule        PriceRule? @relation(fields: [priceRuleId], references: [id], onDelete: SetNull)
+
+  @@index([quoteId])
+}
+
+model Attachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  quoteId      String?  @db.Uuid
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String
+  kind         String   @default("REFERENCE")
+  description  String?
+  aiConsent    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quote        Quote?   @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, quoteId])
+}
+
+model AIInteraction {
+  id         String              @id @default(uuid()) @db.Uuid
+  tenantId   String              @db.Uuid
+  quoteId    String?             @db.Uuid
+  provider   AIProviderType
+  model      String
+  status     AIInteractionStatus
+  inputText  String
+  outputJson Json?
+  error      String?
+  durationMs Int?
+  createdAt  DateTime            @default(now())
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quote      Quote?              @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+}
+
+model VisualProposal {
+  id                String               @id @default(uuid()) @db.Uuid
+  tenantId          String               @db.Uuid
+  quoteId           String?              @db.Uuid
+  description       String
+  mode              VisualProposalMode?
+  spacePhotoConsent Boolean              @default(false)
+  logoOriginalName  String
+  logoMimeType      String
+  logoStorageKey    String
+  spaceMimeType     String?
+  spaceStorageKey   String?
+  outputStorageKey  String?
+  analysis          Json?
+  status            VisualProposalStatus @default(ANALYZED)
+  error             String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quote             Quote?               @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([quoteId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  userId     String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId])
+}

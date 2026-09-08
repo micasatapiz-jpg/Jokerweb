@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import WhatsAppButton from './WhatsAppButton'
+import { Link, NavLink } from 'react-router-dom'
 
 const links = [
   { to: '/', label: 'Inicio' },
@@ -15,8 +14,9 @@ function Navbar() {
 
   return (
     <header className="navbar">
-      <NavLink className="navbar__brand" to="/" onClick={cerrarMenu}>
-        <img src="/src/assets/logo.png" alt="Joker Publicidad" />
+      <NavLink className="navbar__brand" to="/" onClick={cerrarMenu} aria-label="Joker Producción publicitaria, inicio">
+        <strong>JOKER</strong>
+        <span>Producción publicitaria</span>
       </NavLink>
 
       <button
@@ -53,12 +53,7 @@ function Navbar() {
           </ul>
         </nav>
 
-        <WhatsAppButton
-          servicio="general"
-          origen="header"
-          texto="Cotizar"
-          className="navbar__quote"
-        />
+        <Link className="whatsapp-button navbar__quote" to="/cotizar" onClick={cerrarMenu}>Cotizar</Link>
       </div>
     </header>
   )

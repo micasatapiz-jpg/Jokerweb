@@ -7,28 +7,40 @@ import ImageSequenceViewer from './ImageSequenceViewer'
 import WhatsAppButton from './WhatsAppButton'
 
 const secuenciasMascota = [
-  { ruta: '/secuencias/joker/clip-01', cantidad: 480, version: 'hq-3' },
-  { ruta: '/secuencias/joker/clip-02', cantidad: 192, extension: 'png', version: 'original-rgb-lossless-2' },
-  { ruta: '/secuencias/joker/clip-03', cantidad: 192, extension: 'png', version: 'original-rgb-lossless-2' },
+  { ruta: '/secuencias/joker/clip-01', cantidad: 480, extension: 'webp', version: 'hq-3' },
+  { ruta: '/secuencias/joker/clip-02', cantidad: 192, extension: 'webp', version: 'webp-lossless-3' },
+  { ruta: '/secuencias/joker/clip-03', cantidad: 192, extension: 'webp', version: 'webp-lossless-3' },
 ]
 
 const processSteps = [
-  ['01', 'Pensamos', 'Entendemos qué necesitas y dónde debe verse.'],
-  ['02', 'Diseñamos', 'Convertimos la idea en una propuesta visual.'],
-  ['03', 'Producimos', 'Fabricamos e imprimimos cada pieza.'],
-  ['04', 'Instalamos', 'Dejamos tu marca lista para entrar en escena.'],
+  ['01', 'Pensamos'],
+  ['02', 'Diseñamos'],
+  ['03', 'Producimos'],
+  ['04', 'Instalamos'],
 ]
 
 const faqs = [
-  ['¿Necesito tener mi diseño listo?', 'No. Podemos trabajar desde tu logo, una referencia o una idea.'],
-  ['¿Realizan instalación?', 'Sí, según el tipo de proyecto y la ubicación.'],
-  ['¿Puedo cotizar enviando una foto?', 'Sí. Una foto y medidas aproximadas son suficientes para empezar.'],
-  ['¿Atienden empresas?', 'Sí. Atendemos negocios, empresas, agencias y organizaciones.'],
-  ['¿Atienden en Lima?', 'Sí. La atención comercial en Lima es principalmente digital.'],
-  ['¿Tienen presencia en Huancayo?', 'Sí. Contamos con un espacio Joker dentro de Casa Tapiz.'],
+  ['¿Necesito diseño?', 'No. Basta una idea o referencia.'],
+  ['¿Instalan?', 'Sí, según el proyecto.'],
+  ['¿Cómo cotizo?', 'Envíanos foto y medidas.'],
 ]
 
 const PANEL_COUNT = 7
+
+function HeroHeading({ as: Tag = 'h2', id, lines, className = '' }) {
+  return (
+    <Tag id={id} className={`hero-unified__headline ${className}`.trim()}>
+      {lines.map((line, index) => (
+        <span
+          key={line}
+          className={index % 2 === 0 ? '' : 'hero-unified__headline-accent'}
+        >
+          {line}
+        </span>
+      ))}
+    </Tag>
+  )
+}
 
 function HeroPresentacion() {
   const raizRef = useRef(null)
@@ -93,15 +105,10 @@ function HeroPresentacion() {
         </div>
         <div className="hero-unified__shade" aria-hidden="true" />
 
-        <div className="hero-unified__brand" aria-hidden="true">
-          <strong>JOKER</strong>
-          <span>Producción publicitaria</span>
-        </div>
-
         <div className="hero-unified__deck" aria-live="polite">
           <article ref={(element) => { panelesRef.current[0] = element }} className="hero-unified__panel hero-unified__panel--intro" aria-hidden={escena !== 0}>
-            <p>Publicidad · Producción · Instalación</p>
-            <h1 id="hero-title">Tu marca<br />entra en escena.</h1>
+            <p>Letreros · Impresión · Viniles · Instalación</p>
+            <HeroHeading as="h1" id="hero-title" lines={['HACEMOS VISIBLE', 'TU MARCA.']} className="hero-unified__headline--intro" />
             <div className="hero-unified__actions">
               <WhatsAppButton servicio="general" origen="home-unified" texto="Cotizar por WhatsApp" />
               <Link to="/catalogo">Ver servicios ↗</Link>
@@ -109,55 +116,52 @@ function HeroPresentacion() {
           </article>
 
           <article ref={(element) => { panelesRef.current[1] = element }} className="hero-unified__panel hero-unified__panel--services" aria-hidden={escena !== 1}>
-            <p>Todo lo que hacemos</p>
-            <h2>Servicios</h2>
+            <p>Todo para tu marca</p>
+            <HeroHeading lines={['SERVICIOS']} />
             <div className="hero-unified__service-grid">
               {serviceFamilies.map((service) => (
                 <Link key={service.id} to={service.detailPath ?? `/catalogo#${service.id}`}>
                   <span>{service.number}</span>
                   <strong>{service.title}</strong>
-                  <small>{service.includes.slice(0, 3).join(' · ')}</small>
                 </Link>
               ))}
             </div>
           </article>
 
           <article ref={(element) => { panelesRef.current[2] = element }} className="hero-unified__panel hero-unified__panel--process" aria-hidden={escena !== 2}>
-            <p>Un solo equipo</p>
-            <h2>Proceso</h2>
+            <p>De la idea a la calle</p>
+            <HeroHeading lines={['PROCESO']} />
             <div className="hero-unified__process-grid">
-              {processSteps.map(([number, title, text]) => (
+              {processSteps.map(([number, title]) => (
                 <div key={number}>
                   <span>{number}</span>
                   <strong>{title}</strong>
-                  <small>{text}</small>
                 </div>
               ))}
             </div>
           </article>
 
           <article ref={(element) => { panelesRef.current[3] = element }} className="hero-unified__panel hero-unified__panel--business" aria-hidden={escena !== 3}>
-            <p>Empresas y proyectos recurrentes</p>
-            <h2>Soluciones<br />para empresas</h2>
+            <p>Para negocios y equipos</p>
+            <HeroHeading lines={['SOLUCIONES', 'PARA EMPRESAS']} />
             <div className="hero-unified__text-block">
-              <span>Negocios · Agencias · Arquitectos · Organizaciones</span>
-              <small>Producimos una pieza puntual o acompañamos todo el proyecto, desde el diseño hasta la instalación.</small>
-              <WhatsAppButton servicio="empresarial" origen="home-business" texto="Cotizar proyecto empresarial" />
+              <span>Diseño · Producción · Instalación</span>
+              <WhatsAppButton servicio="empresarial" origen="home-business" texto="Cotizar proyecto" />
             </div>
           </article>
 
           <article ref={(element) => { panelesRef.current[4] = element }} className="hero-unified__panel hero-unified__panel--about" aria-hidden={escena !== 4}>
-            <p>Diseño · Producción · Instalación</p>
-            <h2>Somos Joker</h2>
+            <p>Creatividad que se fabrica</p>
+            <HeroHeading lines={['SOMOS JOKER']} />
             <div className="hero-unified__text-block">
-              <small>Somos un equipo creativo y de producción publicitaria que lleva una idea desde la pantalla hasta el lugar donde realmente importa: frente a las personas.</small>
+              <small>Hacemos visible tu marca.</small>
               <Link to="/nosotros">Conocer a Joker ↗</Link>
             </div>
           </article>
 
           <article ref={(element) => { panelesRef.current[5] = element }} className="hero-unified__panel hero-unified__panel--faq" aria-hidden={escena !== 5}>
-            <p>Información útil</p>
-            <h2>Preguntas frecuentes</h2>
+            <p>Respuestas rápidas</p>
+            <HeroHeading lines={['PREGUNTAS', 'FRECUENTES']} />
             <div className="hero-unified__faq-grid">
               {faqs.map(([question, answer]) => (
                 <div key={question}>
@@ -169,12 +173,12 @@ function HeroPresentacion() {
           </article>
 
           <article ref={(element) => { panelesRef.current[6] = element }} className="hero-unified__panel hero-unified__panel--contact" aria-hidden={escena !== 6}>
-            <p>Lima + Huancayo · Cotización digital</p>
-            <h2>Contacto</h2>
+            <p>Lima + Huancayo</p>
+            <HeroHeading lines={['CONTACTO']} />
             <div className="hero-unified__contact-data">
               <a href={`tel:${siteConfig.phoneNumber}`}>{siteConfig.phoneDisplay}</a>
               <a href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a>
-              <span>Envíanos una foto, medidas aproximadas y cuéntanos qué necesitas.</span>
+              <span>Foto + medidas + idea.</span>
             </div>
             <WhatsAppButton servicio="especial" origen="home-contact" texto="Empezar una cotización" />
           </article>

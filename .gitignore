@@ -32,3 +32,11 @@ scripts/.frame-tools/
 scripts/*-preview.png
 public/secuencias/joker/palette-*.png
 public/secuencias/joker/clip01-palette.png
+
+# Backend local
+server/node_modules/
+server/.npm-cache/
+server/dist/
+server/src/generated/prisma/
+server/uploads/
+**/__pycache__/
