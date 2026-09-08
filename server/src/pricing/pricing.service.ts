@@ -3,6 +3,7 @@ import { LocalTenantService } from '../common/local-tenant.service.js'
 import { PrismaService } from '../database/prisma.service.js'
 import { calculateDeterministicPrice } from './pricing.calculator.js'
 import type { CalculateQuoteInput } from './pricing.schemas.js'
+import { activePriceRuleWhere } from './active-price-rule.js'
 
 @Injectable()
 export class PricingService {
@@ -16,8 +17,8 @@ export class PricingService {
       where: { id: input.productId, tenantId: this.tenant.tenantId, isActive: true },
       include: {
         priceRules: {
-          where: { isActive: true },
-          orderBy: { validFrom: 'desc' },
+          where: activePriceRuleWhere(this.tenant.tenantId, new Date()),
+          orderBy: [{ validFrom: 'desc' }, { id: 'asc' }],
           take: 1,
         },
       },
@@ -25,7 +26,7 @@ export class PricingService {
 
     const rule = product?.priceRules[0]
     if (!product || !rule) {
-      throw new NotFoundException('No encontramos una regla de precio activa para este producto.')
+      throw new NotFoundException('No encontramos una tarifa real, activa y vigente para este producto. Se requiere revisión del encargado.')
     }
 
     const result = calculateDeterministicPrice(input, {
@@ -45,4 +46,3 @@ export class PricingService {
     }
   }
 }
-

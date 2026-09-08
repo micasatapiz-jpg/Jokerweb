@@ -98,6 +98,13 @@ model Tenant {
   visualProposals VisualProposal[]
   conversations   Conversation[]
   auditLogs       AuditLog[]
+  contactProfiles ContactProfile[]
+  jobs            Job[]
+  tasks           Task[]
+  approvals       Approval[]
+  summaries       ConversationSummary[]
+  productConfigurations ProductConfiguration[]
+  agentTurns AgentTurn[]
 }
 
 model User {
@@ -128,7 +135,9 @@ model Customer {
   updatedAt DateTime @updatedAt
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   quotes    Quote[]
+  contactProfiles ContactProfile[]
 
+  @@unique([tenantId, id])
   @@index([tenantId, name])
 }
 
@@ -147,7 +156,10 @@ model Product {
   tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   priceRules  PriceRule[]
   quoteItems  QuoteItem[]
+  configurations ProductConfiguration[]
+  jobs Job[]
 
+  @@unique([tenantId, id])
   @@unique([tenantId, slug])
   @@index([tenantId, category])
 }
@@ -170,7 +182,12 @@ model Conversation {
   updatedAt            DateTime              @updatedAt
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messages             ConversationMessage[]
+  jobs                 Job[]
+  tasks                Task[]
+  summaries            ConversationSummary[]
+  agentTurns           AgentTurn[]
 
+  @@unique([tenantId, id])
   @@unique([tenantId, channel, externalId])
   @@index([tenantId, status, lastInboundAt])
 }
@@ -190,7 +207,9 @@ model ConversationMessage {
   payload           Json?
   createdAt         DateTime                     @default(now())
   conversation      Conversation                 @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  turnMemberships   AgentTurnMessage[]
 
+  @@unique([conversationId, id])
   @@unique([conversationId, externalMessageId])
   @@index([conversationId, direction, status, createdAt])
 }
@@ -238,6 +257,7 @@ model Quote {
   total             Decimal          @default(0) @db.Decimal(12, 2)
   validUntil        DateTime?
   approvedAt        DateTime?
+  workflowSnapshot  Json?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -246,7 +266,9 @@ model Quote {
   attachments       Attachment[]
   aiInteractions    AIInteraction[]
   visualProposals   VisualProposal[]
+  jobs              Job[]
 
+  @@unique([tenantId, id])
   @@unique([tenantId, number])
   @@index([tenantId, status, createdAt])
 }
@@ -346,4 +368,304 @@ model AuditLog {
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, entityType, entityId])
+}
+
+enum ContactProfileType {
+  LEAD
+  CLIENTE
+  CLIENTE_FRECUENTE
+  EMPRESA
+  PROVEEDOR
+  INTERNO
+  OTRO
+}
+
+enum JobStatus {
+  NUEVO
+  CONSULTANDO
+  RECOPILANDO_DATOS
+  LISTO_PARA_COTIZAR
+  REQUIERE_REVISION
+  COTIZADO
+  ESPERANDO_CLIENTE
+  ACEPTADO
+  ESPERANDO_ADELANTO
+  PAGO_POR_CONFIRMAR
+  PAGO_CONFIRMADO
+  EN_PRODUCCION
+  FECHA_PENDIENTE
+  LISTO_PARA_RECOGER
+  ENTREGADO
+  PAUSADO
+  CANCELADO
+  REQUIERE_HUMANO
+}
+
+enum TaskType {
+  CONFIRM_PAYMENT
+  APPROVE_QUOTE
+  SET_DELIVERY_DATE
+  REQUEST_EARLIER_DELIVERY
+  VERIFY_ARTWORK
+  CONTACT_CUSTOMER
+  FOLLOW_UP
+  CHECK_REQUIREMENT
+  HANDLE_COMPLAINT
+  CALL_BACK_CUSTOMER
+  CHECK_PRODUCT_RULE
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum ApprovalType {
+  QUOTE
+  PAYMENT
+  DELIVERY_DATE
+  DISCOUNT
+  SPECIAL_PRICE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ContactProfile {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @db.Uuid
+  customerId  String? @db.Uuid
+  phone       String
+  name        String?
+  company     String?
+  type        ContactProfileType @default(LEAD)
+  preferences Json @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  customer    Customer? @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Restrict)
+  jobs        Job[]
+  summaries   ConversationSummary[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, phone])
+  @@index([tenantId, type, name])
+}
+
+model Job {
+  id                String @id @default(uuid()) @db.Uuid
+  tenantId          String @db.Uuid
+  contactProfileId  String @db.Uuid
+  conversationId    String? @db.Uuid
+  quoteId           String? @db.Uuid
+  productId         String? @db.Uuid
+  title             String
+  status            JobStatus @default(NUEVO)
+  requirements      Json @default("{}")
+  confirmedReadyAt  DateTime?
+  deliveredAt       DateTime?
+  artworkApprovedAt DateTime?
+  requirementsRevision Int @default(0)
+  originKey         String?
+  version           Int @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  tenant            Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contactProfile    ContactProfile @relation(fields: [tenantId, contactProfileId], references: [tenantId, id], onDelete: Restrict)
+  conversation      Conversation? @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  quote             Quote? @relation(fields: [tenantId, quoteId], references: [tenantId, id], onDelete: Restrict)
+  product           Product? @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+  tasks             Task[]
+  approvals         Approval[]
+  events            JobEvent[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, contactProfileId, status])
+  @@unique([tenantId, originKey])
+  @@index([tenantId, confirmedReadyAt])
+}
+
+model JobEvent {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @db.Uuid
+  jobId       String @db.Uuid
+  eventKey    String
+  type        String
+  actorId     String
+  actorRole   String
+  evidence    String
+  fromStatus  JobStatus
+  toStatus    JobStatus
+  payload     Json @default("{}")
+  createdAt   DateTime @default(now())
+  job         Job @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, eventKey])
+  @@index([tenantId, jobId, createdAt])
+}
+
+model Task {
+  id             String @id @default(uuid()) @db.Uuid
+  tenantId       String @db.Uuid
+  jobId          String? @db.Uuid
+  conversationId String? @db.Uuid
+  type           TaskType
+  status         TaskStatus @default(OPEN)
+  title          String
+  details        Json @default("{}")
+  dedupeKey      String
+  dueAt          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  job            Job? @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Restrict)
+  conversation   Conversation? @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, dedupeKey])
+  @@index([tenantId, status, dueAt])
+}
+
+model Approval {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @db.Uuid
+  jobId       String @db.Uuid
+  type        ApprovalType
+  status      ApprovalStatus @default(PENDING)
+  payload     Json @default("{}")
+  dedupeKey   String
+  reviewedBy  String?
+  reviewNote  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime @default(now())
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  job         Job @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, dedupeKey])
+  @@index([tenantId, status, type])
+}
+
+model ConversationSummary {
+  id                 String @id @default(uuid()) @db.Uuid
+  tenantId           String @db.Uuid
+  conversationId     String @db.Uuid
+  contactProfileId   String @db.Uuid
+  version            Int
+  text               String
+  sourceMessageIds   Json
+  createdAt          DateTime @default(now())
+  tenant             Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  conversation       Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  contactProfile     ContactProfile @relation(fields: [tenantId, contactProfileId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, conversationId, version])
+}
+
+// Immutable approved snapshots: the highest version is the current configuration.
+model ProductConfiguration {
+  id         String @id @default(uuid()) @db.Uuid
+  tenantId   String @db.Uuid
+  productId  String @db.Uuid
+  version    Int
+  rules      Json
+  updatedBy  String
+  createdAt  DateTime @default(now())
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  product    Product @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, productId, version])
+}
+
+enum AgentTurnStatus {
+  IN_PROGRESS
+  COMPLETED
+  REQUIRES_REVIEW
+  CANCELLED
+}
+
+enum AgentOutboxStatus {
+  PENDING
+  SENDING
+  SENT
+  UNCERTAIN
+  FAILED
+  CANCELLED
+}
+
+model AgentTurn {
+  id               String @id @default(uuid()) @db.Uuid
+  tenantId         String @db.Uuid
+  conversationId   String @db.Uuid
+  status           AgentTurnStatus @default(IN_PROGRESS)
+  sourceMessageIds Json
+  leaseOwner       String @db.Uuid
+  leaseUntil       DateTime
+  attempts         Int @default(1)
+  plan             Json?
+  result           Json?
+  failureCode      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  conversation     Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  sourceMessages   AgentTurnMessage[]
+  toolCalls        AgentToolCall[]
+  outbox           AgentOutbox[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, conversationId, id])
+  @@index([tenantId, conversationId, status, createdAt])
+}
+
+// A persisted inbound message belongs to only one turn, including across retries/replicas.
+model AgentTurnMessage {
+  id             String @id @default(uuid()) @db.Uuid
+  tenantId       String @db.Uuid
+  conversationId String @db.Uuid
+  turnId         String @db.Uuid
+  messageId      String @db.Uuid
+  turn           AgentTurn @relation(fields: [tenantId, conversationId, turnId], references: [tenantId, conversationId, id], onDelete: Restrict)
+  message        ConversationMessage @relation(fields: [conversationId, messageId], references: [conversationId, id], onDelete: Restrict)
+
+  @@unique([tenantId, messageId])
+  @@index([turnId])
+}
+
+model AgentToolCall {
+  id         String @id @default(uuid()) @db.Uuid
+  tenantId   String @db.Uuid
+  turnId     String @db.Uuid
+  callId     String
+  request    Json
+  result     Json
+  createdAt  DateTime @default(now())
+  turn       AgentTurn @relation(fields: [tenantId, turnId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, turnId, callId])
+}
+
+model AgentOutbox {
+  id                String @id @default(uuid()) @db.Uuid
+  tenantId          String @db.Uuid
+  turnId            String @db.Uuid
+  conversationId    String @db.Uuid
+  sequence          Int
+  type              ConversationMessageType
+  payload           Json
+  status            AgentOutboxStatus @default(PENDING)
+  leaseOwner        String? @db.Uuid
+  leaseUntil        DateTime?
+  externalMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  turn              AgentTurn @relation(fields: [tenantId, conversationId, turnId], references: [tenantId, conversationId, id], onDelete: Restrict)
+
+  @@unique([tenantId, turnId, sequence])
+  @@index([tenantId, status, createdAt])
 }

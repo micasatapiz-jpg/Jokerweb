@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { CommunicationsService } from '../communications/communications.service.js'
 import { QuotePdfService } from '../quotes/quote-pdf.service.js'
 import { QuotesService } from '../quotes/quotes.service.js'
@@ -7,6 +7,7 @@ import { LocalTenantService } from '../common/local-tenant.service.js'
 import { PrismaService } from '../database/prisma.service.js'
 import { VisualProposalsService } from '../visual-proposals/visual-proposals.service.js'
 import { WhatsAppGatewayService } from './whatsapp-gateway.service.js'
+import { quoteWorkflowSnapshotSchema } from '../agent-core/quote-workflow.service.js'
 
 @Injectable()
 export class WhatsAppDeliveryService {
@@ -26,6 +27,20 @@ export class WhatsAppDeliveryService {
     })
     if (!conversation) throw new NotFoundException('No encontramos la conversación de WhatsApp.')
     const quote = await this.quotes.get(quoteId)
+    if (quote.status !== 'APPROVED' || (quote.validUntil && quote.validUntil <= new Date())) {
+      throw new ConflictException('Solo se puede enviar una cotización aprobada y vigente.')
+    }
+    const phone = (value: string | null) => value?.replace(/^\+/, '')
+    if (!conversation.customerPhone || !quote.customer.phone || phone(conversation.customerPhone) !== phone(quote.customer.phone)) {
+      throw new ForbiddenException('La cotización no corresponde al destinatario de WhatsApp.')
+    }
+    if (quote.workflowSnapshot) {
+      const snapshot = quoteWorkflowSnapshotSchema.parse(quote.workflowSnapshot)
+      const job = await this.prisma.job.findFirst({ where: { id: snapshot.jobId, tenantId: this.tenant.tenantId,
+        quoteId, conversationId, productId: snapshot.productId, requirementsRevision: snapshot.requirementsRevision,
+        status: { in: ['REQUIERE_REVISION', 'LISTO_PARA_COTIZAR', 'COTIZADO', 'ESPERANDO_CLIENTE'] } } })
+      if (!job) throw new ConflictException('Los requisitos, el trabajo o el canal cambiaron; revisa el presupuesto antes de enviarlo.')
+    }
 
     // Se preparan primero los archivos para no enviar un paquete incompleto si OpenAI falla.
     const [{ message, audio }, pdf] = await Promise.all([

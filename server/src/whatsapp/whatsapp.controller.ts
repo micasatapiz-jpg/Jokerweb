@@ -65,7 +65,6 @@ export class WhatsAppController {
             payload: message,
           }
           const result = await this.conversations.ingest(input)
-          if (result.shouldGreet) await this.sendWelcome(result.conversation)
           if (!result.duplicate) accepted += 1
         }
       }
@@ -89,7 +88,6 @@ export class WhatsAppController {
         payload: { simulated: true },
       })
       conversationId = result.conversation.id
-      if (result.shouldGreet) await this.sendWelcome(result.conversation)
     }
     return { conversationId, buffered: input.messages.length, debounceMs: 'configurado en WHATSAPP_DEBOUNCE_MS' }
   }
@@ -112,10 +110,4 @@ export class WhatsAppController {
     return this.delivery.deliver(conversationId, quoteId)
   }
 
-  private sendWelcome(conversation: { id: string; externalId: string }) {
-    return this.gateway.sendText(
-      conversation,
-      '¡Hola! Gracias por escribir a Joker Publicidad. Puedes enviarnos tu solicitud en varios mensajes, junto con medidas, logo, audio o referencias. Esperaré un momento para reunir todo antes de responderte.',
-    )
-  }
 }

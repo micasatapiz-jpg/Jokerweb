@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { AgentCoreModule } from './agent-core/agent-core.module.js'
 import { ConfigModule } from '@nestjs/config'
 import { AIModule } from './ai/ai.module.js'
 import { CommonModule } from './common/common.module.js'
@@ -14,6 +15,7 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module.js'
 
 @Module({
   imports: [
+    AgentCoreModule,
     ConfigModule.forRoot({ isGlobal: true }),
     CommonModule,
     DatabaseModule,

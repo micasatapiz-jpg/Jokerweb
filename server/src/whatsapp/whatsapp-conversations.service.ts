@@ -44,7 +44,6 @@ export class WhatsAppConversationsService {
         customerName: input.customerName || undefined,
         customerPhone: input.from,
         lastInboundAt: now,
-        status: 'COLLECTING',
       },
     })
 
@@ -76,14 +75,8 @@ export class WhatsAppConversationsService {
     })
 
     const shouldGreet = !conversation.greetedAt
-    if (shouldGreet) {
-      await this.prisma.conversation.update({
-        where: { id: conversation.id },
-        data: { greetedAt: now },
-      })
-    }
-
-    return { conversation: { ...conversation, greetedAt: shouldGreet ? now : conversation.greetedAt }, duplicate: false, shouldGreet }
+    // Acknowledgement is recorded by the worker only after the buffered greeting is sent.
+    return { conversation, duplicate: false, shouldGreet }
   }
 
   async recordOutbound(

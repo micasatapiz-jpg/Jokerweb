@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
 import { Prisma } from '../generated/prisma/client.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { PrismaService } from '../database/prisma.service.js'
@@ -38,6 +39,9 @@ export class QuotesService {
   }
 
   async create(input: CreateQuoteInput) {
+    if (input.items.some((item) => item.discountPercent !== 0)) {
+      throw new ConflictException('Los descuentos requieren una aprobación autorizada; no pueden indicarse directamente en una cotización pública.')
+    }
     const customer = await this.prisma.customer.findFirst({
       where: { id: input.customerId, tenantId: this.tenant.tenantId },
     })
@@ -48,9 +52,8 @@ export class QuotesService {
     const discount = calculatedItems.reduce((sum, item) => sum + item.discount, 0)
     const tax = calculatedItems.reduce((sum, item) => sum + item.tax, 0)
     const total = calculatedItems.reduce((sum, item) => sum + item.total, 0)
-    const count = await this.prisma.quote.count({ where: { tenantId: this.tenant.tenantId } })
     const year = new Date().getFullYear()
-    const number = `COT-${year}-${String(count + 1).padStart(4, '0')}`
+    const number = `COT-${year}-${randomUUID()}`
     const validUntil = new Date()
     validUntil.setDate(validUntil.getDate() + input.validDays)
 
@@ -111,6 +114,9 @@ export class QuotesService {
 
   async approve(id: string) {
     const quote = await this.get(id)
+    if (quote.workflowSnapshot || await this.prisma.job.findFirst({ where: { tenantId: this.tenant.tenantId, quoteId: id } })) {
+      throw new ConflictException('Este presupuesto requiere la revisión autorizada del flujo comercial.')
+    }
     if (quote.status === 'APPROVED') return quote
     if (quote.status === 'REJECTED' || quote.status === 'EXPIRED') {
       throw new ConflictException('Esta cotización no puede aprobarse en su estado actual.')

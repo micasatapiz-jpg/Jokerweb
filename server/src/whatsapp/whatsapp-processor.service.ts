@@ -97,6 +97,7 @@ export class WhatsAppProcessorService implements OnModuleInit, OnModuleDestroy {
       where: {
         tenantId: this.tenant.tenantId,
         channel: 'WHATSAPP',
+        status: { notIn: ['HANDOFF', 'CLOSED'] },
         lastInboundAt: { lte: cutoff },
         messages: { some: { direction: 'INBOUND', status: 'BUFFERED' } },
       },
@@ -121,6 +122,13 @@ export class WhatsAppProcessorService implements OnModuleInit, OnModuleDestroy {
         },
       })
       if (!conversation || conversation.messages.length === 0) return
+      if (['HANDOFF', 'CLOSED'].includes(conversation.status)) return
+      // Also enforce the quiet interval for direct/manual processing, not only the polling query.
+      if (!conversation.lastInboundAt || conversation.lastInboundAt.getTime() > Date.now() - this.debounceMs) return
+      if (!conversation.greetedAt) {
+        await this.gateway.sendText(conversation, '¡Hola! Soy el asistente virtual de Joker Publicidad. Gracias por escribirnos; te ayudo con tu consulta.')
+        await this.prisma.conversation.update({ where: { id: conversation.id }, data: { greetedAt: new Date() } })
+      }
 
       const context = (conversation.context ?? {}) as ConversationContext
       const textParts: string[] = []
@@ -210,8 +218,8 @@ export class WhatsAppProcessorService implements OnModuleInit, OnModuleDestroy {
           where: { id: { in: conversation.messages.map((message) => message.id) } },
           data: { status: 'PROCESSED', processedAt: new Date() },
         }),
-        this.prisma.conversation.update({
-          where: { id: conversation.id },
+        this.prisma.conversation.updateMany({
+          where: { id: conversation.id, tenantId: this.tenant.tenantId, status: { notIn: ['HANDOFF', 'CLOSED'] } },
           data: {
             status: ready ? 'READY_TO_QUOTE' : 'COLLECTING',
             lastProcessedAt: new Date(),
@@ -223,7 +231,8 @@ export class WhatsAppProcessorService implements OnModuleInit, OnModuleDestroy {
       ])
     } catch (error) {
       this.logger.error(error)
-      await this.prisma.conversation.update({ where: { id: conversationId }, data: { status: 'ERROR' } }).catch(() => undefined)
+      await this.prisma.conversation.updateMany({ where: { id: conversationId, tenantId: this.tenant.tenantId,
+        status: { notIn: ['HANDOFF', 'CLOSED'] } }, data: { status: 'ERROR' } }).catch(() => undefined)
     } finally {
       this.processing.delete(conversationId)
     }
