@@ -10,6 +10,7 @@ import { ProductConfigurationService } from './product-configuration.service.js'
 import { QuoteWorkflowService } from './quote-workflow.service.js'
 import { CustomerToolsService, customerToolSchema } from './customer-tools.service.js'
 import { transactionScope } from './transaction-scope.js'
+import { durableSalesPlanSchema } from './durable-sales-plan.js'
 
 const handleSchema = z.object({ turnId: z.uuid(), leaseOwner: z.uuid() }).strict()
 export type TurnHandle = z.infer<typeof handleSchema>
@@ -21,6 +22,21 @@ const storedJson = (value: unknown): Prisma.InputJsonValue => {
 }
 const LEASE_MS = 90000
 const MAX_ATTEMPTS = 3
+
+// Internal decision plans may request review, never operator approval. Keep this
+// list narrower than TaskType; it is not an arbitrary model-driven task endpoint.
+const reviewPlanSchema = z.object({
+  status: z.string(),
+  task: z.enum(['CONTACT_CUSTOMER', 'HANDLE_COMPLAINT', 'CHECK_REQUIREMENT', 'CONFIRM_PAYMENT', 'CHECK_PRODUCT_RULE', 'APPROVE_QUOTE']),
+  reply: z.string().trim().min(1).max(4000),
+}).passthrough()
+const reviewTypesByStatus: Record<string, readonly string[]> = {
+  HANDOFF: ['CONTACT_CUSTOMER', 'HANDLE_COMPLAINT'],
+  SUPPLIER: ['CHECK_REQUIREMENT'],
+  PAYMENT_REVIEW: ['CONFIRM_PAYMENT'],
+  RULE_NOT_CONFIGURED: ['CHECK_PRODUCT_RULE'],
+  HUMAN_REVIEW: ['APPROVE_QUOTE'],
+}
 
 export function assertTurnLease(turn: Pick<AgentTurn, 'status' | 'leaseOwner' | 'leaseUntil'>, handle: TurnHandle, now = new Date()) {
   if (turn.status !== 'IN_PROGRESS' || turn.leaseOwner !== handle.leaseOwner || turn.leaseUntil <= now) throw new ConflictException('La reserva del turno expiró o pertenece a otro procesador.')
@@ -124,9 +140,39 @@ export class AgentTurnsService {
     const reply = z.string().trim().min(1).max(4000).parse(rawReply)
     return this.withLease(handle, async (tx, turn, conversation) => {
       if (conversation.status === 'CLOSED') throw new ConflictException('La conversación está cerrada.')
-      const text = conversation.status === 'HANDOFF' ? 'Claro, tu consulta queda pendiente de atención del encargado.' : reply
+      const saved = turn.plan as Record<string, unknown> | null
+      if (saved?.tools !== undefined) {
+        const plan = durableSalesPlanSchema.parse(saved)
+        const refs: Record<string, unknown> = {}
+        for (const step of plan.tools) {
+          const receipt = await tx.agentToolCall.findUnique({ where: { tenantId_turnId_callId: { tenantId: this.tenantId, turnId: turn.id, callId: step.callId } } })
+          const args = Object.fromEntries(Object.entries(step.args).map(([key, value]) => [key,
+            value === '$jobId' || value === '$revision' ? refs[value] : value]))
+          const request = customerToolSchema.parse({ name: step.name, args })
+          if (!receipt || !isDeepStrictEqual(receipt.request, request)) throw new ConflictException('El plan tiene herramientas pendientes o recibos diferentes.')
+          const result = receipt.result as Record<string, unknown> | null
+          if (result?.jobId) refs.$jobId = result.jobId
+          if (typeof result?.requirementsRevision === 'number') refs.$revision = result.requirementsRevision
+        }
+      }
+      let handoff = conversation.status === 'HANDOFF'
+      if (saved?.task !== undefined) {
+        const plan = reviewPlanSchema.parse(saved)
+        if (!reviewTypesByStatus[plan.status]?.includes(plan.task)) throw new ConflictException('La tarea no corresponde al plan del turno.')
+        // The source chat is known; do not guess a job or claim a payment has
+        // been verified. Job-specific execution remains in the tool layer.
+        await tx.task.upsert({ where: { tenantId_dedupeKey: { tenantId: this.tenantId, dedupeKey: `turn-plan:${turn.id}` } },
+          create: { tenantId: this.tenantId, conversationId: turn.conversationId, type: plan.task,
+            title: plan.reply.slice(0, 200), dedupeKey: `turn-plan:${turn.id}`,
+            details: { turnId: turn.id, sourceMessageIds: idsSchema.parse(turn.sourceMessageIds), decisionStatus: plan.status } }, update: {} })
+        if (plan.status === 'HANDOFF') {
+          handoff = true
+          await tx.conversation.update({ where: { id: conversation.id }, data: { status: 'HANDOFF' } })
+        }
+      }
+      const text = handoff ? 'Claro, tu consulta queda pendiente de atención del encargado.' : reply
       const outbox = await tx.agentOutbox.create({ data: { tenantId: this.tenantId, turnId: turn.id, conversationId: turn.conversationId,
-        sequence: 0, type: 'TEXT', payload: { text, handoffAcknowledgement: conversation.status === 'HANDOFF' } } })
+        sequence: 0, type: 'TEXT', payload: { text, handoffAcknowledgement: handoff } } })
       const result = { text, outboxId: outbox.id }
       await tx.agentTurn.update({ where: { id: turn.id }, data: { status: 'COMPLETED', result } })
       await tx.conversationMessage.updateMany({ where: { conversationId: turn.conversationId, direction: 'INBOUND',

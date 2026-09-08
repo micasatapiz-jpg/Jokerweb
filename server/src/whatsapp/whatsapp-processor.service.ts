@@ -1,69 +1,19 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AIService } from '../ai/ai.service.js'
-import type { QuoteRequirements } from '../ai/quote-requirements.schema.js'
 import { CommunicationsService } from '../communications/communications.service.js'
-import { Prisma } from '../generated/prisma/client.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { PrismaService } from '../database/prisma.service.js'
 import { WhatsAppGatewayService } from './whatsapp-gateway.service.js'
+import { AgentInterpreterService } from '../agent-core/agent-interpreter.service.js'
+import { SalesAgentService } from '../agent-core/sales-agent.service.js'
+import { z } from 'zod'
 
-type ConversationContext = {
-  requirements?: QuoteRequirements
-  logoMediaId?: string
-  spacePhotoMediaId?: string
-  audioTranscripts?: string[]
-  pendingJobs?: string[]
-  pricingBlockedReason?: string
-}
-
-function isGreetingOnly(text: string) {
-  return /^(hola|buenos dias|buenos días|buenas tardes|buenas noches|ola|hi)[.!\s]*$/i.test(text.trim())
-}
-
-function declinesSpacePhoto(text: string) {
-  return /(no (puedo|tengo)|más tarde|mas tarde|por ahora no|sin foto|fondo neutro)/i.test(text)
-}
-
-function looksComplex(text: string, productType?: string | null) {
-  return /(letrero|luminos|corp[oó]rea|fachada|caja de luz|proyecto)/i.test(`${productType ?? ''} ${text}`)
-}
-
-function applyExplicitDimensions(requirements: QuoteRequirements | undefined, text: string) {
-  if (!requirements) return requirements
-  const match = text.match(/(\d+(?:[.,]\d+)?)\s*(?:m|metros?)?\s*(?:x|por)\s*(\d+(?:[.,]\d+)?)\s*(?:m|metros?)?/i)
-  if (!match) return requirements
-  const widthM = Number(match[1].replace(',', '.'))
-  const heightM = Number(match[2].replace(',', '.'))
-  if (!Number.isFinite(widthM) || !Number.isFinite(heightM) || widthM <= 0 || heightM <= 0) return requirements
-  return {
-    ...requirements,
-    widthM,
-    heightM,
-    quantity: requirements.quantity ?? 1,
-    missingFields: requirements.missingFields.filter((field) => !/(medida|ancho|alto)/i.test(field)),
-  }
-}
-
-function mergeRequirements(previous: QuoteRequirements | undefined, current: QuoteRequirements) {
-  if (!previous) return current
-  return {
-    ...current,
-    productType: current.productType ?? previous.productType,
-    widthM: current.widthM ?? previous.widthM,
-    heightM: current.heightM ?? previous.heightM,
-    quantity: current.quantity ?? previous.quantity,
-    material: current.material ?? previous.material,
-    installationRequired: current.installationRequired ?? previous.installationRequired,
-    location: current.location ?? previous.location,
-    requestedDate: current.requestedDate ?? previous.requestedDate,
-    notes: [...new Set([...previous.notes, ...current.notes])],
-    confidence: Math.max(previous.confidence, current.confidence),
-  }
-}
 
 @Injectable()
-export class WhatsAppProcessorService implements OnModuleInit, OnModuleDestroy {
+export class WhatsAppProcessorService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(WhatsAppProcessorService.name)
   private readonly debounceMs: number
   private readonly pollMs: number
@@ -77,13 +27,29 @@ export class WhatsAppProcessorService implements OnModuleInit, OnModuleDestroy {
     private readonly ai: AIService,
     private readonly communications: CommunicationsService,
     private readonly gateway: WhatsAppGatewayService,
+    private readonly interpreter: AgentInterpreterService,
+    private readonly salesAgent: SalesAgentService,
   ) {
-    this.debounceMs = Math.max(1000, Number(config.get<string>('WHATSAPP_DEBOUNCE_MS', '10000')))
-    this.pollMs = Math.max(500, Number(config.get<string>('WHATSAPP_POLL_MS', '1500')))
+    this.debounceMs = Math.max(
+      1000,
+      Number(config.get<string>('WHATSAPP_DEBOUNCE_MS', '10000')),
+    )
+
+    this.pollMs = Math.max(
+      500,
+      Number(config.get<string>('WHATSAPP_POLL_MS', '1500')),
+    )
   }
 
   onModuleInit() {
-    this.timer = setInterval(() => void this.processPending().catch((error) => this.logger.error(error)), this.pollMs)
+    this.timer = setInterval(
+      () =>
+        void this.processPending().catch((error) =>
+          this.logger.error(error),
+        ),
+      this.pollMs,
+    )
+
     this.timer.unref()
   }
 
@@ -93,146 +59,177 @@ export class WhatsAppProcessorService implements OnModuleInit, OnModuleDestroy {
 
   async processPending() {
     const cutoff = new Date(Date.now() - this.debounceMs)
+
     const conversations = await this.prisma.conversation.findMany({
       where: {
         tenantId: this.tenant.tenantId,
         channel: 'WHATSAPP',
         status: { notIn: ['HANDOFF', 'CLOSED'] },
         lastInboundAt: { lte: cutoff },
-        messages: { some: { direction: 'INBOUND', status: 'BUFFERED' } },
+        messages: {
+          some: {
+            direction: 'INBOUND',
+            status: 'BUFFERED',
+          },
+        },
       },
-      orderBy: { lastInboundAt: 'asc' },
+      orderBy: {
+        lastInboundAt: 'asc',
+      },
       take: 10,
     })
-    await Promise.all(conversations.map((conversation) => this.processConversation(conversation.id)))
-    return { processed: conversations.length }
+
+    await Promise.all(
+      conversations.map((conversation) =>
+        this.processConversation(conversation.id),
+      ),
+    )
+
+    return {
+      processed: conversations.length,
+    }
+  }
+
+  private async prepareAgentTurn(conversationId: string) {
+    const claim = await this.salesAgent.claimTurn(
+      conversationId,
+      this.debounceMs,
+    )
+
+    if (claim.status !== 'CLAIMED') {
+      return claim
+    }
+
+    // A recovered turn must execute the saved decision, not reinterpret messages
+    // against context that may have changed since the first attempt.
+    if (claim.plan !== null) {
+      const plan = z.object({
+        status: z.string().min(1),
+        reply: z.string().trim().min(1).max(4000),
+      }).passthrough().parse(claim.plan)
+      return { status: 'PREPARED' as const, claim, prepared: { plan } }
+    }
+
+    const messages = await this.prisma.conversationMessage.findMany({
+      where: {
+        id: {
+          in: claim.sourceMessageIds,
+        },
+        conversationId,
+        direction: 'INBOUND',
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
+
+    const text = messages
+      .map((message) => message.text ?? '')
+      .filter(Boolean)
+      .join('\n')
+      .trim()
+
+    const interpreterContext = await this.salesAgent.interpreterContext(conversationId)
+    const interpretation = await this.interpreter.interpret({
+      text,
+      ...(interpreterContext ? { context: interpreterContext } : {}),
+      hasImage: messages.some(
+        (message) => message.type === 'IMAGE',
+      ),
+      hasDocument: messages.some(
+        (message) => message.type === 'DOCUMENT',
+      ),
+    })
+
+    const prepared = await this.salesAgent.prepareTurn(
+      conversationId,
+      claim.sourceMessageIds,
+      interpretation,
+    )
+
+    await this.salesAgent.saveTurnPlan(
+      claim.handle,
+      prepared.plan,
+    )
+
+    return {
+      status: 'PREPARED' as const,
+      claim,
+      interpretation,
+      prepared,
+    }
   }
 
   async processConversation(conversationId: string) {
     if (this.processing.has(conversationId)) return
+
     this.processing.add(conversationId)
+
     try {
       const conversation = await this.prisma.conversation.findFirst({
-        where: { id: conversationId, tenantId: this.tenant.tenantId },
+        where: {
+          id: conversationId,
+          tenantId: this.tenant.tenantId,
+        },
         include: {
           messages: {
-            where: { direction: 'INBOUND', status: 'BUFFERED' },
-            orderBy: { createdAt: 'asc' },
+            where: {
+              direction: 'INBOUND',
+              status: 'BUFFERED',
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
           },
         },
       })
+
       if (!conversation || conversation.messages.length === 0) return
+
       if (['HANDOFF', 'CLOSED'].includes(conversation.status)) return
-      // Also enforce the quiet interval for direct/manual processing, not only the polling query.
-      if (!conversation.lastInboundAt || conversation.lastInboundAt.getTime() > Date.now() - this.debounceMs) return
-      if (!conversation.greetedAt) {
-        await this.gateway.sendText(conversation, '¡Hola! Soy el asistente virtual de Joker Publicidad. Gracias por escribirnos; te ayudo con tu consulta.')
-        await this.prisma.conversation.update({ where: { id: conversation.id }, data: { greetedAt: new Date() } })
+
+      if (
+        !conversation.lastInboundAt ||
+        conversation.lastInboundAt.getTime() >
+          Date.now() - this.debounceMs
+      ) {
+        return
       }
 
-      const context = (conversation.context ?? {}) as ConversationContext
-      const textParts: string[] = []
-      const audioTranscripts = [...(context.audioTranscripts ?? [])]
-      let logoMediaId = context.logoMediaId
-      let spacePhotoMediaId = context.spacePhotoMediaId
+      const prepared = await this.prepareAgentTurn(
+        conversation.id,
+      )
 
-      for (const message of conversation.messages) {
-        if (message.text) textParts.push(message.text)
-        if (message.type === 'IMAGE' && message.mediaId) {
-          const caption = message.text ?? ''
-          if (/espacio|lugar|local|fachada|pared/i.test(caption) || (logoMediaId && conversation.spacePhotoAskedAt)) {
-            spacePhotoMediaId = message.mediaId
-          } else if (!logoMediaId) {
-            logoMediaId = message.mediaId
-          }
-        }
-        if (message.type === 'AUDIO' && message.mediaId) {
-          try {
-            const media = await this.gateway.downloadMedia(message.mediaId)
-            const transcript = await this.communications.transcribe({
-              buffer: media.buffer,
-              filename: message.fileName ?? `whatsapp-${message.id}.ogg`,
-              mimeType: media.mimeType,
-            })
-            audioTranscripts.push(transcript.text)
-            textParts.push(transcript.text)
-          } catch (error) {
-            this.logger.warn(`Audio pendiente ${message.id}: ${error instanceof Error ? error.message : 'error'}`)
-          }
-        }
+      if (prepared.status !== 'PREPARED') {
+        return
       }
 
-      const combinedText = textParts.join('\n').trim()
-      const declined = declinesSpacePhoto(combinedText)
-      let requirements = context.requirements
-      if (combinedText.length >= 10 && !isGreetingOnly(combinedText)) {
-        try {
-          requirements = mergeRequirements(context.requirements, (await this.ai.analyze(combinedText)).requirements)
-          requirements = applyExplicitDimensions(requirements, combinedText)
-        } catch (error) {
-          this.logger.warn(`La IA no pudo analizar ${conversationId}: ${error instanceof Error ? error.message : 'error'}`)
-        }
-      }
+      const reply = await this.salesAgent.executePlan(prepared.claim.handle, prepared.prepared.plan)
+      await this.salesAgent.finishTurn(
+        prepared.claim.handle,
+        reply,
+      )
 
-      const complex = looksComplex(combinedText, requirements?.productType)
-      const needsAddress = complex && requirements?.installationRequired !== false && !requirements?.location
-      const needsDimensions = complex && (!requirements?.widthM || !requirements?.heightM)
-      const shouldAskSpacePhoto = complex && !spacePhotoMediaId && !declined && !conversation.spacePhotoAskedAt
-      const pendingJobs = [
-        'CALCULATE_DETERMINISTIC_QUOTE',
-        'GENERATE_QUOTE_PDF',
-        'GENERATE_CUSTOMER_AUDIO',
-      ]
-      if (logoMediaId) pendingJobs.splice(1, 0, spacePhotoMediaId ? 'GENERATE_CONTEXTUAL_VISUAL' : 'GENERATE_NEUTRAL_VISUAL')
-
-      const nextContext: ConversationContext = {
-        requirements,
-        logoMediaId,
-        spacePhotoMediaId,
-        audioTranscripts,
-        pendingJobs,
-        pricingBlockedReason: 'Pendiente cargar las tarifas reales y reglas por producto.',
-      }
-
-      const paragraphs: string[] = []
-      if (combinedText && !isGreetingOnly(combinedText)) {
-        paragraphs.push('Gracias, ya reuní la información que enviaste para preparar tu propuesta.')
-        const questions: string[] = []
-        if (complex && !logoMediaId) questions.push('el archivo o foto de tu logo')
-        if (needsDimensions) questions.push('el ancho y alto aproximados')
-        if (needsAddress) questions.push('la dirección o al menos el distrito donde se instalará, para calcular movilidad y viáticos')
-        if (questions.length) paragraphs.push(`Para completar el cálculo, envíame ${questions.join(', ')}.`)
-        if (shouldAskSpacePhoto) {
-          paragraphs.push('Opcionalmente, puedes enviar una foto del espacio donde irá el letrero para mostrarlo en el lugar real. Si no puedes ahora, continuaremos con una propuesta sobre fondo neutro.')
-        }
-        if (!questions.length) paragraphs.push('Registramos tu solicitud. El equipo revisará las tarifas para confirmar el presupuesto y enviarte la propuesta.')
-      }
-
-      if (paragraphs.length) {
-        await this.gateway.sendText(conversation, paragraphs.join(' '))
-      }
-
-      const ready = Boolean(requirements?.productType) && (!complex || (!needsDimensions && !needsAddress))
-      await this.prisma.$transaction([
-        this.prisma.conversationMessage.updateMany({
-          where: { id: { in: conversation.messages.map((message) => message.id) } },
-          data: { status: 'PROCESSED', processedAt: new Date() },
-        }),
-        this.prisma.conversation.updateMany({
-          where: { id: conversation.id, tenantId: this.tenant.tenantId, status: { notIn: ['HANDOFF', 'CLOSED'] } },
-          data: {
-            status: ready ? 'READY_TO_QUOTE' : 'COLLECTING',
-            lastProcessedAt: new Date(),
-            spacePhotoAskedAt: shouldAskSpacePhoto ? new Date() : undefined,
-            spacePhotoDeclinedAt: declined ? new Date() : undefined,
-            context: nextContext as Prisma.InputJsonValue,
-          },
-        }),
-      ])
+      this.logger.debug(
+        `Turno Agent Core completado para ${conversation.id}`,
+      )
     } catch (error) {
       this.logger.error(error)
-      await this.prisma.conversation.updateMany({ where: { id: conversationId, tenantId: this.tenant.tenantId,
-        status: { notIn: ['HANDOFF', 'CLOSED'] } }, data: { status: 'ERROR' } }).catch(() => undefined)
+
+      await this.prisma.conversation
+        .updateMany({
+          where: {
+            id: conversationId,
+            tenantId: this.tenant.tenantId,
+            status: {
+              notIn: ['HANDOFF', 'CLOSED'],
+            },
+          },
+          data: {
+            status: 'ERROR',
+          },
+        })
+        .catch(() => undefined)
     } finally {
       this.processing.delete(conversationId)
     }

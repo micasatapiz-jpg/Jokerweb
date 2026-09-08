@@ -2,7 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { Prisma } from '../generated/prisma/client.js'
-import { productConfigurationSchema } from './product-configuration.schema.js'
+import { productConfigurationSchema, configurationIsCurrent } from './product-configuration.schema.js'
 import type { TrustedActor } from './job-state.js'
 
 @Injectable()
@@ -13,7 +13,7 @@ export class ProductConfigurationService {
     const record = await this.db.productConfiguration.findFirst({ where: { tenantId: this.tenant.tenantId, productId }, orderBy: { version: 'desc' } })
     if (!record) return null
     const parsed = productConfigurationSchema.safeParse(record.rules)
-    if (!parsed.success) return null
+    if (!parsed.success || !configurationIsCurrent(parsed.data)) return null
     return { ...record, rules: parsed.data }
   }
 

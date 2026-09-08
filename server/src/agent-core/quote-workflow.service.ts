@@ -8,8 +8,10 @@ import { LocalTenantService } from '../common/local-tenant.service.js'
 import { activePriceRuleWhere } from '../pricing/active-price-rule.js'
 import { calculateDeterministicPrice } from '../pricing/pricing.calculator.js'
 import { actorSchema, type TrustedActor } from './job-state.js'
-import { evaluateProductRules, productConfigurationSchema } from './product-configuration.schema.js'
+import { evaluateProductRules, productConfigurationSchema, configurationIsCurrent } from './product-configuration.schema.js'
 import { resolveQuoteInputs } from './quote-inputs.js'
+import { calculateCommercialPrice } from './commercial-pricing.js'
+import type { CalculateQuoteInput } from '../pricing/pricing.schemas.js'
 
 const json = (value: unknown) => value as Prisma.InputJsonValue
 const operationSchema = z.object({
@@ -134,23 +136,32 @@ export class QuoteWorkflowService {
       await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${product.id}::uuid AND "tenantId" = ${this.tenantId}::uuid FOR UPDATE`
       const configuration = await tx.productConfiguration.findFirst({ where: { tenantId: this.tenantId, productId: product.id }, orderBy: { version: 'desc' } })
       const parsed = productConfigurationSchema.safeParse(configuration?.rules)
-      if (!configuration || !parsed.success) return escalate('RULE_NOT_CONFIGURED', [], 'Faltan reglas aprobadas válidas.')
+      if (!configuration || !parsed.success || !configurationIsCurrent(parsed.data)) return escalate('RULE_NOT_CONFIGURED', [], 'Faltan reglas aprobadas válidas.')
       const rules = parsed.data
       const requirements = job.requirements as Record<string, unknown>
       const evaluation = evaluateProductRules(rules, requirements)
       if (evaluation.status === 'MISSING_DATA') return escalate('MISSING_DATA', evaluation.missingFields, 'Faltan requisitos del producto.')
-      if (!rules.quotationRules.pricingEngine || !rules.quotationRules.pricingInputs || !rules.quotationRules.validityDays) return escalate('RULE_NOT_CONFIGURED', [], 'Falta motor, mapeo de unidades/servicios o vigencia del presupuesto.')
-      const resolved = resolveQuoteInputs(product.id, rules.quotationRules.pricingInputs, requirements)
+      if (!rules.quotationRules.pricingEngine || (!rules.commercialPricing && !rules.quotationRules.pricingInputs) || !rules.quotationRules.validityDays) return escalate('RULE_NOT_CONFIGURED', [], 'Falta motor, mapeo de unidades/servicios o vigencia del presupuesto.')
+      const resolved = rules.commercialPricing ? { status: 'READY' as const, input: { productId: product.id, quantity: 1, includeDesign: false, installationRequired: false, includeTransport: false, discountPercent: 0 } as CalculateQuoteInput }
+        : resolveQuoteInputs(product.id, rules.quotationRules.pricingInputs!, requirements)
       if (resolved.status !== 'READY') return escalate('MISSING_DATA', resolved.missingFields, 'Faltan datos explícitos para el cálculo.')
-      if (rules.quotationRules.requiresDesign === true && !resolved.input.includeDesign) return escalate('RULE_NOT_CONFIGURED', [], 'El mapeo de diseño contradice la regla del producto.')
-      if (rules.installationRules.requiresInstallation === true && !resolved.input.installationRequired) return escalate('RULE_NOT_CONFIGURED', [], 'El mapeo de instalación contradice la regla del producto.')
+      if (!rules.commercialPricing && rules.quotationRules.requiresDesign === true && !resolved.input.includeDesign) return escalate('RULE_NOT_CONFIGURED', [], 'El mapeo de diseño contradice la regla del producto.')
+      if (!rules.commercialPricing && rules.installationRules.requiresInstallation === true && !resolved.input.installationRequired) return escalate('RULE_NOT_CONFIGURED', [], 'El mapeo de instalación contradice la regla del producto.')
       const now = new Date()
-      const rate = await tx.priceRule.findFirst({ where: { ...activePriceRuleWhere(this.tenantId, now), productId: product.id }, orderBy: [{ validFrom: 'desc' }, { id: 'asc' }] })
+      const rate = await tx.priceRule.findFirst({ where: { ...activePriceRuleWhere(this.tenantId, now), productId: product.id,
+        ...(rules.commercialPricing ? { id: rules.commercialPricing.tariffId } : {}) }, orderBy: [{ validFrom: 'desc' }, { id: 'asc' }] })
       if (!rate) return escalate('RULE_NOT_CONFIGURED', [], 'No hay tarifa real vigente. No usar precios demo.')
-      if (Number(rate.pricePerSquareMeter) > 0 && (!resolved.input.widthM || !resolved.input.heightM)) return escalate('RULE_NOT_CONFIGURED', [], 'La tarifa por área necesita dimensiones en metros.')
+      if (!rules.commercialPricing && Number(rate.pricePerSquareMeter) > 0 && (!resolved.input.widthM || !resolved.input.heightM)) return escalate('RULE_NOT_CONFIGURED', [], 'La tarifa por área necesita dimensiones en metros.')
       const rateSnapshot = { basePrice: Number(rate.basePrice), pricePerSquareMeter: Number(rate.pricePerSquareMeter), designFee: Number(rate.designFee),
         installationFee: Number(rate.installationFee), transportFee: Number(rate.transportFee), marginPercent: Number(rate.marginPercent), igvPercent: Number(rate.igvPercent) }
-      const calculated = calculateDeterministicPrice(resolved.input, rateSnapshot)
+      let generic: ReturnType<typeof calculateCommercialPrice> | null = null
+      if (rules.commercialPricing) {
+        try { generic = calculateCommercialPrice(rules.commercialPricing, rate.commercialRates, requirements) }
+        catch { return escalate('RULE_NOT_CONFIGURED', [], 'La tarifa genérica no tiene un esquema válido.') }
+        if (generic.status !== 'READY') return escalate(generic.status, generic.missingFields, 'No se puede calcular con estos requisitos/reglas.')
+        resolved.input.quantity = generic.input.quantity
+      }
+      const calculated = generic?.status === 'READY' ? generic.calculation : calculateDeterministicPrice(resolved.input, rateSnapshot)
       if (calculated.total <= 0 || (calculated.areaM2 ?? 0) >= 100000000 || [calculated.total, calculated.subtotal, calculated.unitPrice, calculated.tax].some((amount) => !Number.isFinite(amount) || amount >= 10000000000)) return escalate('RULE_NOT_CONFIGURED', [], 'La tarifa produce un importe o área fuera del rango admitido para una cotización comercial.')
       await tx.$queryRaw`SELECT id FROM "ContactProfile" WHERE id = ${job.contactProfileId}::uuid AND "tenantId" = ${this.tenantId}::uuid FOR UPDATE`
       const contact = await tx.contactProfile.findFirstOrThrow({ where: { id: job.contactProfileId, tenantId: this.tenantId } })
@@ -165,7 +176,9 @@ export class QuoteWorkflowService {
       const snapshot = { jobId: job.id, requirementsRevision: job.requirementsRevision, productId: product.id,
         configurationId: configuration.id, configurationVersion: configuration.version,
         priceRuleId: rate.id, priceRuleUpdatedAt: rate.updatedAt.toISOString(), rate: rateSnapshot,
-        requirements, calculationInput: resolved.input, calculation: calculated }
+        requirements, calculationInput: generic?.status === 'READY' ? generic.input : resolved.input, calculation: calculated,
+        commercialPricing: rules.commercialPricing, commercialRates: generic?.status === 'READY' ? generic.tariff : null,
+        validUntil: new Date(now.getTime() + rules.quotationRules.validityDays * 86400000).toISOString() }
       const quote = await tx.quote.create({ data: { tenantId: this.tenantId, customerId,
         number: `COT-${now.getUTCFullYear()}-${randomUUID()}`, status: 'PENDING_APPROVAL', currency: tenant.currency,
         sourceText: data.evidence, serviceAddress: typeof requirements.location === 'string' ? requirements.location : null,
@@ -218,7 +231,8 @@ export class QuoteWorkflowService {
         if (!await tx.product.findFirst({ where: { id: snapshot.productId, tenantId: this.tenantId, isActive: true } })) throw new ConflictException('El producto ya no está activo.')
         const config = await tx.productConfiguration.findFirst({ where: { tenantId: this.tenantId, productId: snapshot.productId }, orderBy: { version: 'desc' } })
         const rate = await tx.priceRule.findFirst({ where: { ...activePriceRuleWhere(this.tenantId, new Date()), id: snapshot.priceRuleId, productId: snapshot.productId } })
-        if (!config || config.id !== snapshot.configurationId || config.version !== snapshot.configurationVersion || !rate || rate.updatedAt.toISOString() !== snapshot.priceRuleUpdatedAt) throw new ConflictException('Las reglas o tarifas cambiaron; vuelve a calcular antes de aprobar.')
+        const currentRules = productConfigurationSchema.safeParse(config?.rules)
+        if (!config || !currentRules.success || !configurationIsCurrent(currentRules.data) || config.id !== snapshot.configurationId || config.version !== snapshot.configurationVersion || !rate || rate.updatedAt.toISOString() !== snapshot.priceRuleUpdatedAt) throw new ConflictException('Las reglas o tarifas cambiaron; vuelve a calcular antes de aprobar.')
       }
       const now = new Date()
       await tx.approval.update({ where: { id: approval.id }, data: { status: data.decision, reviewedBy: actor.id, reviewedAt: now, reviewNote: data.note } })

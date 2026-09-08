@@ -227,6 +227,7 @@ model PriceRule {
   marginPercent       Decimal     @default(0) @db.Decimal(5, 2)
   igvPercent          Decimal     @default(18) @db.Decimal(5, 2)
   isDemo              Boolean     @default(true)
+  commercialRates     Json?
   isActive            Boolean     @default(true)
   validFrom           DateTime    @default(now())
   validUntil          DateTime?

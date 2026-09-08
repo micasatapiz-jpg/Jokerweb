@@ -1,10 +1,12 @@
 import { z } from 'zod'
 import { quoteInputBindingsSchema } from './quote-inputs.js'
+import { commercialPricingSchema, requirementKey, resolveCommercialInputs } from './commercial-pricing.js'
 
-const keySchema = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,59}$/).refine((s) => !['constructor', 'prototype', '__proto__'].includes(s))
+const keySchema = requirementKey
 const text = z.string().trim().min(1).max(500)
 const fieldRule = z.object({
   question: text,
+  label: text.optional(),
   type: z.enum(['text', 'number', 'boolean', 'choice']),
   min: z.number().optional(), max: z.number().optional(),
   choices: z.array(text).max(30).optional(),
@@ -16,6 +18,11 @@ const fieldRule = z.object({
 const format = z.string().regex(/^[A-Za-z0-9]{2,12}$/).transform((s) => s.toUpperCase())
 
 export const productConfigurationSchema = z.object({
+  isActive: z.boolean().default(true),
+  validFrom: z.iso.datetime().nullable().default(null),
+  validUntil: z.iso.datetime().nullable().default(null),
+  commercialPricing: commercialPricingSchema.nullable().default(null),
+  designRules: z.object({ instructions: z.array(text).max(30).default([]), requiresBrief: z.boolean().default(false) }).strict().default({ instructions: [], requiresBrief: false }),
   quotationRules: z.object({
     requiredFields: z.array(keySchema).max(40).default([]),
     optionalFields: z.array(keySchema).max(40).default([]),
@@ -24,7 +31,7 @@ export const productConfigurationSchema = z.object({
     materials: z.array(text).max(30).default([]),
     finishes: z.array(text).max(30).default([]),
     requiresDesign: z.boolean().nullable().default(null),
-    pricingEngine: z.enum(['STANDARD_AREA_V1']).nullable().default(null),
+    pricingEngine: z.enum(['STANDARD_AREA_V1', 'GENERIC_V1']).nullable().default(null),
     pricingInputs: quoteInputBindingsSchema.nullable().default(null),
     validityDays: z.number().int().min(1).max(90).nullable().default(null),
   }).strict(),
@@ -63,6 +70,18 @@ export const productConfigurationSchema = z.object({
   autoQuoteEnabled: z.boolean().default(false),
   requiresHumanReview: z.boolean().default(true),
 }).strict().superRefine((rules, ctx) => {
+  if (rules.validFrom && rules.validUntil && rules.validFrom >= rules.validUntil) ctx.addIssue({ code: 'custom', message: 'Vigencia inválida.' })
+  if ((rules.quotationRules.pricingEngine === 'GENERIC_V1') !== Boolean(rules.commercialPricing)) ctx.addIssue({ code: 'custom', message: 'GENERIC_V1 requiere configuración comercial y viceversa.' })
+  const commercial = rules.commercialPricing
+  if (commercial) {
+    const expected: Array<[string, string]> = [
+      ...commercial.measurements.flatMap(m => [[m.field, 'number'], [m.unitField, 'choice']] as Array<[string, string]>),
+      ...commercial.addOns.map(a => [a.field, 'boolean'] as [string, string]),
+      ...(commercial.quantity.field ? [[commercial.quantity.field, 'number'] as [string, string]] : []),
+      ...(commercial.variant ? [[commercial.variant.field, 'choice'] as [string, string]] : []),
+    ]
+    for (const [key, type] of expected) if (rules.quotationRules.fields[key]?.type !== type) ctx.addIssue({ code: 'custom', message: `Define ${key} como ${type}.` })
+  }
   const required = rules.quotationRules.requiredFields
   const optional = rules.quotationRules.optionalFields
   if (new Set([...required, ...optional]).size !== required.length + optional.length) ctx.addIssue({ code: 'custom', message: 'Los campos requeridos y opcionales no deben repetirse.' })
@@ -80,8 +99,12 @@ export const productConfigurationSchema = z.object({
 
 export type ProductConfigurationRules = z.infer<typeof productConfigurationSchema>
 
+export function configurationIsCurrent(rules: ProductConfigurationRules, now = new Date()) {
+  return rules.isActive && (!rules.validFrom || new Date(rules.validFrom) <= now) && (!rules.validUntil || new Date(rules.validUntil) > now)
+}
+
 export function evaluateProductRules(rules: ProductConfigurationRules | null, values: Record<string, unknown>) {
-  if (!rules) return { status: 'RULE_NOT_CONFIGURED' as const, missingFields: [] as string[], questions: [] as string[] }
+  if (!rules || !configurationIsCurrent(rules)) return { status: 'RULE_NOT_CONFIGURED' as const, missingFields: [] as string[], questions: [] as string[] }
   const missingFields: string[] = []
   const questions: string[] = []
   for (const [key, field] of Object.entries(rules.quotationRules.fields)) {
@@ -100,6 +123,13 @@ export function evaluateProductRules(rules: ProductConfigurationRules | null, va
   }
   if (rules.installationRules.requiresLocation && !values.location) {
     if (!missingFields.includes('location')) { missingFields.push('location'); questions.push('¿En qué dirección o distrito se instalará?') }
+  }
+  if (rules.designRules.requiresBrief && !values.designBrief) { missingFields.push('designBrief'); questions.push('¿Qué idea quieres desarrollar para el diseño?') }
+  if (rules.commercialPricing) {
+    const inputs = resolveCommercialInputs(rules.commercialPricing, values)
+    if (inputs.status === 'MISSING_DATA') for (const field of inputs.missingFields) {
+      if (!missingFields.includes(field)) { missingFields.push(field); questions.push(rules.quotationRules.fields[field]?.question ?? `Confirma ${field}.`) }
+    }
   }
   return { status: missingFields.length ? 'MISSING_DATA' as const : rules.requiresHumanReview || !rules.autoQuoteEnabled ? 'HUMAN_REVIEW' as const : 'READY' as const,
     missingFields, questions: questions.slice(0, 2) }

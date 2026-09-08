@@ -9,6 +9,12 @@ import { QuoteWorkflowService } from './quote-workflow.service.js'
 import { CustomerToolsService } from './customer-tools.service.js'
 import { AgentTurnsService } from './agent-turns.service.js'
 import { AgentOutboxService } from './agent-outbox.service.js'
+import { WhatsAppOutboxWorkerService } from '../whatsapp/whatsapp-outbox-worker.service.js'
+import { WhatsAppDeliveryService } from '../whatsapp/whatsapp-delivery.service.js'
+import { WhatsAppProcessorService } from '../whatsapp/whatsapp-processor.service.js'
+import { AgentInterpreterService } from './agent-interpreter.service.js'
+import { SalesAgentService } from './sales-agent.service.js'
+import { ContextBuilderService } from './context-builder.service.js'
 
 const testUrl = process.env.TEST_DATABASE_URL
 // Integration tests never fall back to the application's DATABASE_URL.
@@ -129,7 +135,22 @@ describe.skipIf(!testUrl)('CommercialService / PostgreSQL aislado', () => {
     const source = { conversationId: conversation.id, sourceMessageIds: [message.id], callId: 'create-1' }
     const tool = { name: 'createJob', args: { title: 'Letrero de prueba' } }
     const results = await Promise.all([tools.execute(source, tool), tools.execute({ ...source, callId: 'create-retry' }, tool)])
-    expect(results.map((result) => (result as { created: boolean }).created).sort()).toEqual([false, true])
+    expect(
+  results
+    .map((result) => {
+      if (
+        !result ||
+        typeof result !== 'object' ||
+        !('created' in result) ||
+        typeof result.created !== 'boolean'
+      ) {
+        throw new Error('createJob devolvió un resultado inesperado')
+      }
+
+      return result.created
+    })
+    .sort(),
+).toEqual([false, true])
     expect(await db.job.count({ where: { tenantId, conversationId: conversation.id } })).toBe(1)
     await expect(tools.execute({ ...source, sourceMessageIds: [randomUUID()] }, { name: 'findJobs', args: {} })).rejects.toThrow('no pertenecen')
     await db.conversation.update({ where: { id: conversation.id }, data: { status: 'HANDOFF' } })
@@ -204,6 +225,112 @@ describe.skipIf(!testUrl)('CommercialService / PostgreSQL aislado', () => {
     expect(await db.conversationMessage.count({ where: { conversationId: conversation.id, direction: 'OUTBOUND' } })).toBe(1)
     expect(await db.task.count({ where: { tenantId, dedupeKey: `outbox-review:${claimed.handle.outboxId}`, status: 'DONE' } })).toBe(1)
     expect((await outbox.claimNext(conversation.id)).status).toBe('EMPTY')
+  })
+
+  it.each([
+    { text: 'Quiero un humano', task: 'CONTACT_CUSTOMER', handoff: true },
+    { text: 'Ya hice el Yape', task: 'CONFIRM_PAYMENT', handoff: false },
+  ] as const)('flujo texto con PostgreSQL y transporte simulado: $task', async ({ text, task, handoff }) => {
+    const flowTenantId = randomUUID()
+    await db.tenant.create({ data: { id: flowTenantId, name: 'Flujo fixture', slug: flowTenantId } })
+    const flowConfig = new ConfigService({ DEFAULT_TENANT_ID: flowTenantId, WHATSAPP_DEBOUNCE_MS: '10000' })
+    const tenant = new LocalTenantService(flowConfig)
+    const commercial = new CommercialService(db, tenant)
+    const turns = new AgentTurnsService(db, tenant)
+    const sales = new SalesAgentService(db, tenant, commercial, new ContextBuilderService(db, tenant, commercial, flowConfig), new ProductConfigurationService(db, tenant), turns)
+    const processor = new WhatsAppProcessorService(flowConfig, db, tenant, {} as never, {} as never, {} as never, new AgentInterpreterService(), sales)
+    const chat = await db.conversation.create({ data: { tenantId: flowTenantId, channel: 'WHATSAPP', externalId: '51999000888', customerPhone: '51999000888', lastInboundAt: new Date(Date.now() - 30000) } })
+    const message = await db.conversationMessage.create({ data: { conversationId: chat.id, direction: 'INBOUND', type: 'TEXT', status: 'BUFFERED', text } })
+    await processor.processConversation(chat.id)
+    const gateway = { sendTextRaw: vi.fn().mockResolvedValue({ simulated: true, externalMessageId: `sim-${randomUUID()}` }) }
+    const delivery = new WhatsAppDeliveryService(db, tenant, {} as never, {} as never, {} as never, {} as never, gateway as never, new AgentOutboxService(db, tenant))
+    const worker = new WhatsAppOutboxWorkerService(flowConfig, db, tenant, delivery)
+    await worker.processPending()
+    await processor.processConversation(chat.id)
+    await worker.processPending()
+    expect((await db.conversationMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe('PROCESSED')
+    expect(await db.agentTurn.count({ where: { tenantId: flowTenantId, status: 'COMPLETED' } })).toBe(1)
+    expect(await db.task.count({ where: { tenantId: flowTenantId, type: task, status: 'OPEN' } })).toBe(1)
+    expect((await db.conversation.findUniqueOrThrow({ where: { id: chat.id } })).status === 'HANDOFF').toBe(handoff)
+    expect(await db.conversationMessage.count({ where: { conversationId: chat.id, direction: 'OUTBOUND', status: 'SENT' } })).toBe(1)
+    expect(gateway.sendTextRaw).toHaveBeenCalledOnce()
+  })
+
+  it('completar el plan persiste tarea y acuse humano juntos; no confirma pagos ni permite tareas privilegiadas', async () => {
+    const turns = new AgentTurnsService(db, new LocalTenantService(config))
+    const chat = await db.conversation.create({ data: { tenantId, channel: 'WHATSAPP', externalId: randomUUID(), customerPhone: '51999000977', lastInboundAt: new Date(Date.now() - 30000) } })
+    await db.conversationMessage.create({ data: { conversationId: chat.id, direction: 'INBOUND', type: 'TEXT', status: 'BUFFERED', text: 'Quiero un humano' } })
+    const claim = await turns.claimNext(chat.id)
+    if (claim.status !== 'CLAIMED') throw new Error('No claim')
+    await turns.savePlan(claim.handle, { status: 'HANDOFF', task: 'CONTACT_CUSTOMER', reply: 'Le aviso al encargado.' })
+    const result = await turns.complete(claim.handle, 'Le aviso al encargado.')
+    expect((await db.conversation.findUniqueOrThrow({ where: { id: chat.id } })).status).toBe('HANDOFF')
+    expect(await db.task.count({ where: { conversationId: chat.id, dedupeKey: `turn-plan:${claim.handle.turnId}` } })).toBe(1)
+    expect((await db.agentOutbox.findUniqueOrThrow({ where: { id: result.outboxId } })).payload).toMatchObject({ handoffAcknowledgement: true })
+    expect((await turns.claimNext(chat.id)).status).toBe('PAUSED')
+    await expect(turns.complete(claim.handle, 'Repetir')).rejects.toThrow('reserva')
+    expect(await db.agentOutbox.count({ where: { conversationId: chat.id } })).toBe(1)
+
+    const payment = await db.conversation.create({ data: { tenantId, channel: 'WHATSAPP', externalId: randomUUID(), customerPhone: '51999000978', lastInboundAt: new Date(Date.now() - 30000) } })
+    await db.conversationMessage.create({ data: { conversationId: payment.id, direction: 'INBOUND', type: 'TEXT', status: 'BUFFERED', text: 'Ya pagué' } })
+    const paymentTurn = await turns.claimNext(payment.id)
+    if (paymentTurn.status !== 'CLAIMED') throw new Error('No claim')
+    await turns.savePlan(paymentTurn.handle, { status: 'PAYMENT_REVIEW', task: 'CONFIRM_PAYMENT', reply: 'Pediré que revisen el pago.' })
+    await turns.complete(paymentTurn.handle, 'Pediré que revisen el pago.')
+    expect(await db.task.count({ where: { conversationId: payment.id, type: 'CONFIRM_PAYMENT', status: 'OPEN' } })).toBe(1)
+    expect(await db.approval.count({ where: { tenantId, type: 'PAYMENT', status: 'APPROVED', payload: { path: ['turnId'], equals: paymentTurn.handle.turnId } } })).toBe(0)
+
+    const bad = await db.conversation.create({ data: { tenantId, channel: 'WHATSAPP', externalId: randomUUID(), customerPhone: '51999000979', lastInboundAt: new Date(Date.now() - 30000) } })
+    await db.conversationMessage.create({ data: { conversationId: bad.id, direction: 'INBOUND', type: 'TEXT', status: 'BUFFERED', text: 'Fixture inválida' } })
+    const badTurn = await turns.claimNext(bad.id)
+    if (badTurn.status !== 'CLAIMED') throw new Error('No claim')
+    await turns.savePlan(badTurn.handle, { status: 'HANDOFF', task: 'CONFIRM_PAYMENT', reply: 'Incorrecto' })
+    await expect(turns.complete(badTurn.handle, 'Incorrecto')).rejects.toThrow('no corresponde')
+    expect(await db.task.count({ where: { conversationId: bad.id } })).toBe(0)
+    expect(await db.agentOutbox.count({ where: { conversationId: bad.id } })).toBe(0)
+  })
+
+  it('despachador real recupera salidas sin entradas pendientes, serializa réplicas y respeta bloqueos', async () => {
+    const dispatchTenantId = randomUUID()
+    await db.tenant.create({ data: { id: dispatchTenantId, name: 'Dispatch fixture', slug: dispatchTenantId } })
+    const localConfig = new ConfigService({ DEFAULT_TENANT_ID: dispatchTenantId })
+    const tenant = new LocalTenantService(localConfig)
+    const outbox = new AgentOutboxService(db, tenant)
+    const turns = new AgentTurnsService(db, tenant)
+    const gateway = { sendTextRaw: vi.fn().mockImplementation(async () => ({ simulated: true, externalMessageId: `sim-${randomUUID()}` })) }
+    const delivery = new WhatsAppDeliveryService(db, tenant, {} as never, {} as never, {} as never, {} as never, gateway as never, outbox)
+    const worker = () => new WhatsAppOutboxWorkerService(localConfig, db, tenant, delivery)
+    const fixture = async () => {
+      const phone = `519${Math.floor(Math.random() * 1e8).toString().padStart(8, '0')}`
+      const chat = await db.conversation.create({ data: { tenantId: dispatchTenantId, channel: 'WHATSAPP', externalId: phone, customerPhone: phone, lastInboundAt: new Date(Date.now() - 30000) } })
+      await db.conversationMessage.create({ data: { conversationId: chat.id, direction: 'INBOUND', type: 'TEXT', status: 'BUFFERED', text: 'Fixture' } })
+      const turn = await turns.claimNext(chat.id)
+      if (turn.status !== 'CLAIMED') throw new Error('No claim')
+      const output = await turns.complete(turn.handle, 'Salida fixture')
+      return { chat, turn, output }
+    }
+    const ready = await fixture()
+    const interrupted = await fixture()
+    const cancelled = await fixture()
+    const handoff = await fixture()
+    const attempt = await outbox.claimNext(interrupted.chat.id)
+    if (attempt.status !== 'CLAIMED') throw new Error('No attempt')
+    await db.agentOutbox.update({ where: { id: interrupted.output.outboxId }, data: { leaseUntil: new Date(0) } })
+    await db.agentOutbox.create({ data: { tenantId: dispatchTenantId, conversationId: interrupted.chat.id, turnId: interrupted.turn.handle.turnId,
+      sequence: 1, type: 'TEXT', payload: { text: 'No adelantar este mensaje' }, createdAt: new Date(Date.now() + 1000) } })
+    await db.conversation.update({ where: { id: cancelled.chat.id }, data: { status: 'CLOSED' } })
+    await db.conversation.update({ where: { id: handoff.chat.id }, data: { status: 'HANDOFF' } })
+    await db.agentOutbox.update({ where: { id: handoff.output.outboxId }, data: { payload: { text: 'Acuse humano', handoffAcknowledgement: true } } })
+    await Promise.all([worker().processPending(), worker().processPending()])
+    await worker().processPending()
+    expect(gateway.sendTextRaw).toHaveBeenCalledTimes(2)
+    const state = async (id: string) => (await db.agentOutbox.findUniqueOrThrow({ where: { id } })).status
+    expect(await state(ready.output.outboxId)).toBe('SENT')
+    expect(await state(interrupted.output.outboxId)).toBe('UNCERTAIN')
+    expect(await state(cancelled.output.outboxId)).toBe('CANCELLED')
+    expect(await state(handoff.output.outboxId)).toBe('SENT')
+    expect(await db.conversationMessage.count({ where: { conversationId: ready.chat.id, direction: 'OUTBOUND' } })).toBe(1)
+    expect(await db.task.count({ where: { tenantId: dispatchTenantId, dedupeKey: `outbox-review:${interrupted.output.outboxId}` } })).toBe(1)
   })
 
   it('cotización completa conserva JSONB, aprobación, idempotencia concurrente y rechaza un cambio posterior', async () => {

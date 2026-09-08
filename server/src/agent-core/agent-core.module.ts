@@ -7,7 +7,9 @@ import { QuoteWorkflowService } from './quote-workflow.service.js'
 import { CustomerToolsService } from './customer-tools.service.js'
 import { AgentTurnsService } from './agent-turns.service.js'
 import { AgentOutboxService } from './agent-outbox.service.js'
+import { AgentInterpreterService } from './agent-interpreter.service.js'
+import { OpenAIInterpreterTransport } from './openai-interpreter.transport.js'
 
-@Module({ providers: [CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService],
-  exports: [CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService] })
+@Module({ providers: [CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService, AgentInterpreterService, OpenAIInterpreterTransport],
+  exports: [CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService, AgentInterpreterService] })
 export class AgentCoreModule {}

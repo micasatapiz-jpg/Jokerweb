@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { evaluateProductRules, type ProductConfigurationRules } from './product-configuration.schema.js'
+import { requirementKey } from './commercial-pricing.js'
 
 export const interpretationSchema = z.object({
   intent: z.enum(['VENTA_NUEVA', 'CLIENTE_EXISTENTE', 'SEGUIMIENTO_PEDIDO', 'PAGO', 'RECLAMO',
@@ -7,7 +8,7 @@ export const interpretationSchema = z.object({
   productQuery: z.string().trim().min(1).max(150).nullable().default(null),
   newJobExplicit: z.boolean().default(false),
   selectedJobId: z.uuid().nullable().default(null),
-  requirements: z.record(z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,59}$/), z.union([z.string().max(4000), z.number(), z.boolean(), z.null()])).default({}),
+  requirements: z.record(requirementKey, z.union([z.string().max(4000), z.number().finite(), z.boolean(), z.null()])).refine(v => Object.keys(v).length <= 60).default({}),
   ambiguousMeasurement: z.boolean().default(false),
   filePurpose: z.enum(['REFERENCE', 'FINAL_ARTWORK', 'LOGO', 'PRINT_PHOTO', 'DESIGN', 'SPACE_PHOTO', 'PAYMENT_PROOF', 'UNKNOWN']).default('UNKNOWN'),
 }).strict()
