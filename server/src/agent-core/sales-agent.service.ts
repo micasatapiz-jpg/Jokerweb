@@ -10,6 +10,7 @@ import { Prisma } from '../generated/prisma/client.js'
 import { AgentTurnsService, type TurnHandle } from './agent-turns.service.js'
 import { executeDurableSalesPlan, type DurableSalesPlan } from './durable-sales-plan.js'
 import { evaluateProductRules } from './product-configuration.schema.js'
+import { understandingV2Schema } from './understanding-v2.js'
 
 // Shared chat/call core. Interpretation is injected by channel adapters; this service performs no model/network calls.
 @Injectable()
@@ -23,6 +24,7 @@ export class SalesAgentService {
   }
 
   preflightTurn(handle: TurnHandle) { return this.turns.preflight(handle) }
+  expireWaitingConversations() { return this.turns.expireWaiting() }
 
   saveTurnPlan(handle: TurnHandle, plan: unknown) {
     return this.turns.savePlan(handle, plan)
@@ -59,8 +61,17 @@ export class SalesAgentService {
     return { catalog, jobs: await this.commercial.findJobs(contact.id), context }
   }
 
-  async prepareTurn(conversationId: string, sourceMessageIds: string[], rawInterpretation: unknown) {
+  async prepareTurn(conversationId: string, sourceMessageIds: string[], rawInterpretation: unknown, handle?:TurnHandle) {
     const interpretation = interpretationSchema.parse(rawInterpretation)
+    if(handle) {
+      const saved=await this.turns.understanding(handle)
+      const understanding=understandingV2Schema.safeParse(saved.understanding)
+      if(understanding.success) for(const entity of understanding.data.entities) interpretation.requirements[entity.key]=entity.value
+      if(understanding.success&&!interpretation.productQuery&&understanding.data.productResolution==='EXACT') {
+        const id=understanding.data.requestComponents[0]?.matchedProductId
+        if(id){const product=await this.db.product.findFirst({where:{id,tenantId:this.tenant.tenantId,isActive:true}});if(product)interpretation.productQuery=product.name}
+      }
+    }
     const tenantId = this.tenant.tenantId
     const conversation = await this.db.conversation.findFirst({ where: { id: conversationId, tenantId } })
     if (!conversation?.customerPhone) throw new NotFoundException('Chat no encontrado.')

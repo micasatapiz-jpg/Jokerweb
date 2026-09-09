@@ -57,6 +57,16 @@ describe.skipIf(!testUrl)('Flujo comercial PostgreSQL real / APIs simuladas', ()
     return { tenantId, config, tenant, product, tariff, configurations, turns, sales, interpreter, processor, gateway, send, worker, chat, inbound, jobs }
   }
 
+  it('tres burbujas corrigen 20 a 30 antes de crear Job y Quote únicos',async()=>{
+    const h=await setup('UNIT')
+    for(const text of [h.product.name,'quiero 20','no, mejor 30'])await db.conversationMessage.create({data:{conversationId:h.chat.id,direction:'INBOUND',type:'TEXT',status:'BUFFERED',text}})
+    await db.conversation.update({where:{id:h.chat.id},data:{lastInboundAt:new Date(Date.now()-30000)}})
+    await h.processor.processConversation(h.chat.id)
+    expect(await h.jobs()).toHaveLength(1)
+    expect((await h.jobs())[0]!.requirements).toMatchObject({quantity:30})
+    expect(await db.quote.count({where:{tenantId:h.tenantId,status:'PENDING_APPROVAL'}})).toBe(1)
+    expect(await db.agentOutbox.count({where:{tenantId:h.tenantId}})).toBe(1)
+  })
   it.each(['UNIT', 'AREA', 'LINEAR', 'FIXED', 'PACKAGE'] as const)('%s: BUFFERED → tools → Quote pendiente → Outbox → SENT simulado', async mode => {
     const h = await setup(mode)
     const all = commercialValuesFixture(mode)

@@ -44,7 +44,7 @@ export class WhatsAppProcessorService
   onModuleInit() {
     this.timer = setInterval(
       () =>
-        void this.processPending().catch((error) =>
+        void this.salesAgent.expireWaitingConversations().then(()=>this.processPending()).catch((error) =>
           this.logger.error(error),
         ),
       this.pollMs,
@@ -148,6 +148,7 @@ export class WhatsAppProcessorService
       conversationId,
       claim.sourceMessageIds,
       interpretation,
+      claim.handle,
     )
 
     await this.salesAgent.saveTurnPlan(

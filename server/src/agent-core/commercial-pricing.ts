@@ -20,6 +20,8 @@ export const commercialPricingSchema = z.object({
   addOns: z.array(z.object({ field: requirementKey, rateKey: z.string().min(1).max(80),
     basis: z.enum(['PER_UNIT', 'PER_ORDER']) }).strict()).max(20),
   minimumSubtotal: z.number().nonnegative(), maximumSubtotal: z.number().positive(),
+  minimumMeasure: z.number().nonnegative().optional(),
+  minimumOrderMeasureExclusive: z.number().nonnegative().optional(),
 }).strict().superRefine((r, ctx) => {
   const issue = (message: string) => ctx.addIssue({ code: 'custom', message })
   if ((r.quantity.field === null) === (r.quantity.constant === null)) issue('Configura campo o cantidad constante, no ambos.')
@@ -82,8 +84,10 @@ export function calculateCommercialPrice(rawRule: CommercialPricing, rawTariff: 
   if ((rule.variant && rule.variant.options.some(o => !Object.hasOwn(tariff.variants, o))) || rule.addOns.some(a => !Object.hasOwn(tariff.addOns, a.rateKey)))
     return { status: 'RULE_NOT_CONFIGURED' as const, missingFields: [] }
   const measure = input.dimensions.reduce((a, b) => a.mul(b), new D(1))
+  if(rule.minimumOrderMeasureExclusive!==undefined&&measure.mul(input.quantity).lte(rule.minimumOrderMeasureExclusive)) return {status:'RULE_NOT_CONFIGURED' as const,missingFields:[]}
+  const billableMeasure=D.max(measure,rule.minimumMeasure??0)
   const rate = input.variant === null ? tariff.unitPrice : tariff.variants[input.variant]!
-  let perUnit = measure.mul(rate), setup = new D(tariff.setupPrice)
+  let perUnit = billableMeasure.mul(rate), setup = new D(tariff.setupPrice)
   for (const a of rule.addOns.filter(a => input.addOns.includes(a.field))) {
     if (a.basis === 'PER_ORDER') setup = setup.plus(tariff.addOns[a.rateKey]!)
     else perUnit = perUnit.plus(tariff.addOns[a.rateKey]!)

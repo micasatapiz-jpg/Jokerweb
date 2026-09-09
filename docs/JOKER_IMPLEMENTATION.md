@@ -369,3 +369,45 @@ git -c safe.directory=C:/Users/Fernando/Documents/JOKERWEB status --short
 El directorio temporal de herramientas debe existir; no es un volumen productivo. Si se
 elimina, instalar embedded-postgres en otro directorio nuevo joker-pg-test-* dentro de TEMP
 y usar su ruta. El script crea un cluster nuevo en cada ejecución; no reutiliza bases existentes.
+
+## Cierre local — Understanding v2 y aprendizaje comercial (2026-09-09)
+
+Este apartado actualiza los límites del bloque anterior: ya existe la fundación de aprendizaje
+supervisado, pero sigue sin habilitarse aprendizaje automático ni publicación de tarifas.
+Detalle de arquitectura, inventario completo de archivos, comandos del OWNER y TODOs:
+[JOKER_UNDERSTANDING_AND_COMMERCIAL_LEARNING.md](./JOKER_UNDERSTANDING_AND_COMMERCIAL_LEARNING.md).
+
+Implementado: síntesis multimensaje persistida, espera de archivos y timeout WAITING_CUSTOMER,
+corrección de cantidad antes del cálculo, Understanding v2 estricto sin tools, resolución
+por capacidades/componentes, policy y fallback, conocimiento con alcance confirmado,
+históricos exclusivamente internos y sugerencias de regla sin publicación automática.
+
+Prisma: CommercialKnowledge, CommercialRuleSuggestion, enums de alcance/estado, relaciones
+Tenant; Conversation agrega contexto de espera y AgentTurn síntesis/Understanding/policy.
+No se migró la base del negocio. Solo se aplicó el schema a PostgreSQL aislado.
+
+El PDF real de cuatro páginas se extrajo y revisó visualmente. Sus tarifas/capacidades se
+conservan como fixtures de referencia y se prueba su persistencia con hash, no como reglas
+productivas. Faltan: tarifa 7 oz hasta 100 m², ancho útil/aprovechamiento de vinil, instalación,
+tratamiento fiscal y agregado final de líneas con distintas alturas. No se inventaron esos datos.
+
+### Resultado final de validación
+
+- **891 tests aprobados, 0 fallidos, 0 omitidos, 24 archivos** en PostgreSQL aislado real.
+- **562 tests añadidos** respecto de los 329 previos; incluye matriz de 500 conversaciones,
+  integración de aprendizaje, históricos aislados, flujo real de cantidad corregida y mocks v2.
+- Desglose: 791 unitarios/contratos y 100 PostgreSQL. `npm test` sin TEST_DATABASE_URL
+  reporta 791 aprobados y 100 omitidos; ese comando solo no representa el cierre completo.
+- Build Vite y Nest, lint TypeScript, Prisma validate/generate y git diff --check correctos.
+- Lint raíz sale con código 0 y conserva un warning previo por parámetro `mode` no usado en
+  commercial-pricing.fixtures.ts; no hay nuevos warnings del bloque.
+- Se repitió build Nest después de Prisma generate: ejecutarlos simultáneamente había
+  provocado archivos generados temporalmente ausentes. La repetición secuencial quedó verde.
+- El último PostgreSQL temporal quedó apagado y conservado para inspección:
+  `C:/Users/Fernando/AppData/Local/Temp/joker-pg-test-65cbdc99-9902-4c5e-9dc0-a5e4695483da/cluster-3cb78762-c113-4e78-9715-f542929eefd3`.
+
+Estado entregado: rama joker-agent-core-avance, 11 archivos modificados y 10 nuevos, sin stage,
+commit, push ni deploy. No se tocaron Railway, Meta, APIs con créditos, audio real ni SUNAT.
+No se creó panel ni se activó el transporte OpenAI v2 en el preflight: mantiene adapter
+determinista intercambiable. Carga comercial, revisión/migración y activación real requieren
+un bloque posterior autorizado; las referencias no habilitan cotización autónoma por sí solas.

@@ -14,6 +14,7 @@ import { durableSalesPlanSchema } from './durable-sales-plan.js'
 import { maySendAutomatically } from './actor-policy.js'
 import { OperatorControlsService } from './operator-controls.service.js'
 import { controlConversation } from './conversation-controls.js'
+import { understandingPreflight } from './understanding-preflight.js'
 
 const handleSchema = z.object({ turnId: z.uuid(), leaseOwner: z.uuid() }).strict()
 export type TurnHandle = z.infer<typeof handleSchema>
@@ -112,7 +113,9 @@ export class AgentTurnsService {
     return this.withLease(handle, async (tx, turn, conversation) => {
       if (turn.plan !== null) return turn.plan
       const operators = new OperatorControlsService(transactionScope(tx),this.tenant)
+      if(['ASSIST','HUMAN_TAKEOVER'].includes(conversation.automationMode)) await understandingPreflight(tx,this.tenantId,conversation,turn,idsSchema.parse(turn.sourceMessageIds),true)
       const result = await controlConversation(tx,this.tenantId,conversation,idsSchema.parse(turn.sourceMessageIds),operators)
+        ?? await understandingPreflight(tx,this.tenantId,conversation,turn,idsSchema.parse(turn.sourceMessageIds))
       if (result) await tx.agentTurn.update({ where:{ id:turn.id },data:{ plan:storedJson(result) } })
       return result
     })
@@ -129,6 +132,9 @@ export class AgentTurnsService {
       return plan
     })
   }
+
+  understanding(handle:TurnHandle) { return this.withLease(handle,async (_tx,turn)=>({ understanding:turn.understandingV2,synthesis:turn.synthesis })) }
+  expireWaiting(now=new Date()) { return this.db.conversation.updateMany({where:{tenantId:this.tenantId,waitingUntil:{lte:now},waitingState:{in:['WAITING_FOR_FILE','WAITING_FOR_MORE_TEXT','LIKELY_INCOMPLETE']}},data:{waitingState:'WAITING_CUSTOMER',waitingUntil:null}}) }
 
   runCustomerTool(handle: TurnHandle, callId: string, rawTool: unknown) {
     z.string().min(1).max(150).parse(callId)

@@ -4,6 +4,7 @@ import { classifySecurity, hasPermission } from './actor-policy.js'
 import { interpretOwnerInstruction } from './owner-instruction-interpreter.js'
 import { OperatorControlsService, type OperatorCommand } from './operator-controls.service.js'
 import { HeuristicAgentInterpreter } from './agent-interpreter.service.js'
+import { ownerCommercialLearning } from './owner-commercial-learning.js'
 
 const plan = (reply: string, silent = false, internalReply = false) => ({ status:'CONTROLLED',reply,tools:[],silent,internalReply })
 
@@ -55,6 +56,10 @@ export async function controlConversation(tx: Prisma.TransactionClient, tenantId
     return plan('La solicitud necesita revisión del encargado.',true)
   }
   if (internal && messages.every(m => m.type === 'TEXT')) {
+    if(actor?.type==='OWNER') {
+      const learning=await ownerCommercialLearning(tx,{tenantId} as never,source.id,text)
+      if(learning)return learning
+    }
     const instruction = interpretOwnerInstruction(text)
     if (instruction.action === 'SENSITIVE_REQUEST') return plan(hasPermission(actor,instruction.permission) ? 'Indica el trabajo y la aprobación verificable. No se ha confirmado ni cambiado ningún importe.' : 'No tienes permiso para esa acción sensible.',false,true)
     try {

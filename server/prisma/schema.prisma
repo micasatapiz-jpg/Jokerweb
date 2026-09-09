@@ -167,6 +167,59 @@ datasource db {
   provider = "postgresql"
 }
 
+enum CommercialKnowledgeScope {
+  THIS_JOB
+  REUSABLE_REFERENCE
+  PERMANENT_RULE_CANDIDATE
+}
+
+enum CommercialKnowledgeStatus {
+  DRAFT
+  VERIFIED_REFERENCE
+  REJECTED
+  SUPERSEDED
+}
+
+model CommercialKnowledge {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  title String
+  category String
+  componentKey String
+  scope CommercialKnowledgeScope?
+  status CommercialKnowledgeStatus @default(DRAFT)
+  sourceType String
+  sourceJobId String? @db.Uuid
+  sourceQuoteId String? @db.Uuid
+  createdByActorId String? @db.Uuid
+  verifiedByActorId String? @db.Uuid
+  verifiedAt DateTime?
+  contentJson Json
+  applicabilityJson Json
+  riskLevel String @default("REVIEW_REQUIRED")
+  requestKey String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId], references:[id],onDelete:Restrict)
+  @@unique([tenantId,id])
+  @@unique([tenantId,requestKey])
+  @@index([tenantId,componentKey,status,scope])
+}
+
+model CommercialRuleSuggestion {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  componentKey String
+  evidenceJson Json
+  status ApprovalStatus @default(PENDING)
+  reviewedByActorId String? @db.Uuid
+  reviewedAt DateTime?
+  dedupeKey String
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields:[tenantId], references:[id],onDelete:Restrict)
+  @@unique([tenantId,dedupeKey])
+}
+
 enum QuoteStatus {
   DRAFT
   PENDING_APPROVAL
@@ -239,6 +292,8 @@ enum ConversationMessageStatus {
 }
 
 model Tenant {
+  commercialKnowledge CommercialKnowledge[]
+  ruleSuggestions CommercialRuleSuggestion[]
   id                    String                 @id @default(uuid()) @db.Uuid
   name                  String
   slug                  String                 @unique
@@ -329,6 +384,9 @@ model Product {
 }
 
 model Conversation {
+  pendingSynthesis Json?
+  waitingState String?
+  waitingUntil DateTime?
   id                   String                @id @default(uuid()) @db.Uuid
   tenantId             String                @db.Uuid
   channel              ConversationChannel
@@ -782,6 +840,9 @@ enum AgentOutboxStatus {
 }
 
 model AgentTurn {
+  understandingV2 Json?
+  synthesis Json?
+  policyDecision Json?
   id               String             @id @default(uuid()) @db.Uuid
   tenantId         String             @db.Uuid
   conversationId   String             @db.Uuid
