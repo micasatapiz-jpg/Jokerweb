@@ -13,6 +13,7 @@ export type IncomingMessage = {
   mimeType?: string
   fileName?: string
   payload?: unknown
+  source?: 'VERIFIED_WEBHOOK' | 'SIMULATION'
 }
 
 @Injectable()
@@ -59,11 +60,18 @@ export class WhatsAppConversationsService {
       if (duplicate) return { conversation, duplicate: true, shouldGreet: false }
     }
 
+    const actor = input.source === 'VERIFIED_WEBHOOK'
+      ? await this.prisma.actorIdentity.findFirst({ where:{ tenantId:this.tenant.tenantId,channel:'WHATSAPP',externalSubject:input.from,active:true } })
+      : null
     await this.prisma.conversationMessage.create({
       data: {
         conversationId: conversation.id,
         externalMessageId: input.externalMessageId,
         direction: 'INBOUND',
+        senderExternalId: input.from,
+        authorType: actor?.type ?? 'CUSTOMER',
+        authorId: actor?.id ?? null,
+        source: input.source ?? 'UNVERIFIED',
         type: input.type,
         text: input.text,
         mediaId: input.mediaId,
@@ -92,6 +100,8 @@ export class WhatsAppConversationsService {
         conversationId,
         externalMessageId,
         direction: 'OUTBOUND',
+        authorType: 'AI_AGENT',
+        source: 'AGENT_OUTBOX',
         type,
         text,
         status: failed ? 'FAILED' : 'SENT',

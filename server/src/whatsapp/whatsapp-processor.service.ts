@@ -110,6 +110,9 @@ export class WhatsAppProcessorService
       return { status: 'PREPARED' as const, claim, prepared: { plan } }
     }
 
+    const controlled = await this.salesAgent.preflightTurn(claim.handle)
+    if (controlled) return { status: 'PREPARED' as const, claim, prepared: { plan: z.object({ status:z.string(),reply:z.string() }).passthrough().parse(controlled) } }
+
     const messages = await this.prisma.conversationMessage.findMany({
       where: {
         id: {

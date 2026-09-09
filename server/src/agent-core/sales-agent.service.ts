@@ -22,6 +22,8 @@ export class SalesAgentService {
     return this.turns.claimNext(conversationId, quietMs)
   }
 
+  preflightTurn(handle: TurnHandle) { return this.turns.preflight(handle) }
+
   saveTurnPlan(handle: TurnHandle, plan: unknown) {
     return this.turns.savePlan(handle, plan)
   }

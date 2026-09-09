@@ -15,6 +15,7 @@ import { VisualProposalsService } from '../visual-proposals/visual-proposals.ser
 import { AgentOutboxService } from '../agent-core/agent-outbox.service.js'
 import { quoteWorkflowSnapshotSchema } from '../agent-core/quote-workflow.service.js'
 import { WhatsAppGatewayService } from './whatsapp-gateway.service.js'
+import { maySendAutomatically } from '../agent-core/actor-policy.js'
 
 @Injectable()
 export class WhatsAppDeliveryService {
@@ -107,6 +108,8 @@ export class WhatsAppDeliveryService {
         'No encontramos la conversación de WhatsApp.',
       )
     }
+
+    if (!maySendAutomatically(conversation)) throw new ConflictException('El modo actual del chat no permite envíos automáticos.')
 
     const quote =
       await this.quotes.get(quoteId)

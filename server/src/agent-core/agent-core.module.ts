@@ -9,7 +9,8 @@ import { AgentTurnsService } from './agent-turns.service.js'
 import { AgentOutboxService } from './agent-outbox.service.js'
 import { AgentInterpreterService } from './agent-interpreter.service.js'
 import { OpenAIInterpreterTransport } from './openai-interpreter.transport.js'
+import { OperatorControlsService } from './operator-controls.service.js'
 
-@Module({ providers: [CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService, AgentInterpreterService, OpenAIInterpreterTransport],
-  exports: [CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService, AgentInterpreterService] })
+@Module({ providers: [OperatorControlsService, CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService, AgentInterpreterService, OpenAIInterpreterTransport],
+  exports: [OperatorControlsService, CommercialService, ContextBuilderService, ProductConfigurationService, SalesAgentService, QuoteWorkflowService, CustomerToolsService, AgentTurnsService, AgentOutboxService, AgentInterpreterService] })
 export class AgentCoreModule {}

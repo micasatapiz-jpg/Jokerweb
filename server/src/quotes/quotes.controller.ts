@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common'
+import { OperatorApiGuard, OperatorPermission } from '../common/operator-api.guard.js'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js'
 import { QuotePdfService } from './quote-pdf.service.js'
@@ -55,6 +56,8 @@ export class QuotesController {
   }
 
   @Post(':id/approve')
+  @UseGuards(OperatorApiGuard)
+  @OperatorPermission('APPROVE_QUOTE')
   approve(@Param('id', ParseUUIDPipe) id: string) {
     return this.quotes.approve(id)
   }

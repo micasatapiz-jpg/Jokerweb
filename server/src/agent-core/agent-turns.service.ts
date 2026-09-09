@@ -11,6 +11,9 @@ import { QuoteWorkflowService } from './quote-workflow.service.js'
 import { CustomerToolsService, customerToolSchema } from './customer-tools.service.js'
 import { transactionScope } from './transaction-scope.js'
 import { durableSalesPlanSchema } from './durable-sales-plan.js'
+import { maySendAutomatically } from './actor-policy.js'
+import { OperatorControlsService } from './operator-controls.service.js'
+import { controlConversation } from './conversation-controls.js'
 
 const handleSchema = z.object({ turnId: z.uuid(), leaseOwner: z.uuid() }).strict()
 export type TurnHandle = z.infer<typeof handleSchema>
@@ -73,9 +76,10 @@ export class AgentTurnsService {
       }
       if (!conversation.lastInboundAt || conversation.lastInboundAt.getTime() > now.getTime() - quietMs) return { status: 'WAITING' as const }
       const messages = await tx.conversationMessage.findMany({ where: { conversationId, direction: 'INBOUND', status: 'BUFFERED', turnMemberships: { none: {} } },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 30, select: { id: true } })
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 30, select: { id: true, senderExternalId: true, source: true } })
       if (!messages.length) return { status: 'EMPTY' as const }
-      const sourceMessageIds = messages.map((message) => message.id)
+      const boundary = messages.findIndex(m => m.senderExternalId !== messages[0]!.senderExternalId || m.source !== messages[0]!.source)
+      const sourceMessageIds = (boundary < 0 ? messages : messages.slice(0,boundary)).map((message) => message.id)
       const turn = await tx.agentTurn.create({ data: { tenantId: this.tenantId, conversationId, sourceMessageIds, leaseOwner, leaseUntil } })
       await tx.agentTurnMessage.createMany({ data: sourceMessageIds.map((messageId) => ({ tenantId: this.tenantId, conversationId, turnId: turn.id, messageId })) })
       return { status: 'CLAIMED' as const, handle: { turnId: turn.id, leaseOwner }, sourceMessageIds, plan: null, recovered: false }
@@ -85,6 +89,7 @@ export class AgentTurnsService {
   private async withLease<T>(rawHandle: TurnHandle, action: (tx: Prisma.TransactionClient, turn: AgentTurn, conversation: Conversation) => Promise<T>): Promise<T> {
     const handle = handleSchema.parse(rawHandle)
     return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Tenant" WHERE id = ${this.tenantId}::uuid FOR UPDATE`
       const initial = await tx.agentTurn.findFirst({ where: { id: handle.turnId, tenantId: this.tenantId } })
       if (!initial) throw new NotFoundException('Turno no encontrado.')
       await tx.$queryRaw`SELECT id FROM "Conversation" WHERE id = ${initial.conversationId}::uuid AND "tenantId" = ${this.tenantId}::uuid FOR UPDATE`
@@ -103,6 +108,16 @@ export class AgentTurnsService {
     return this.withLease(handle, (tx, turn) => tx.agentTurn.update({ where: { id: turn.id }, data: { leaseUntil: new Date(Date.now() + LEASE_MS) } }))
   }
 
+  preflight(handle: TurnHandle) {
+    return this.withLease(handle, async (tx, turn, conversation) => {
+      if (turn.plan !== null) return turn.plan
+      const operators = new OperatorControlsService(transactionScope(tx),this.tenant)
+      const result = await controlConversation(tx,this.tenantId,conversation,idsSchema.parse(turn.sourceMessageIds),operators)
+      if (result) await tx.agentTurn.update({ where:{ id:turn.id },data:{ plan:storedJson(result) } })
+      return result
+    })
+  }
+
   savePlan(handle: TurnHandle, rawPlan: unknown) {
     const plan = storedJson(z.record(z.string(), z.json()).parse(rawPlan))
     return this.withLease(handle, async (tx, turn) => {
@@ -119,12 +134,13 @@ export class AgentTurnsService {
     z.string().min(1).max(150).parse(callId)
     const tool = customerToolSchema.parse(rawTool)
     const request = storedJson(tool)
-    return this.withLease(handle, async (tx, turn) => {
+    return this.withLease(handle, async (tx, turn, conversation) => {
       const prior = await tx.agentToolCall.findUnique({ where: { tenantId_turnId_callId: { tenantId: this.tenantId, turnId: turn.id, callId } } })
       if (prior) {
         if (!isDeepStrictEqual(prior.request, request)) throw new ConflictException('El identificador de herramienta ya tiene otros argumentos.')
         return prior.result
       }
+      if ((conversation.automationMode ?? 'AUTO') !== 'AUTO' || ['INTERNAL_TEAM','OWNER_PRIVATE'].includes(conversation.role)) throw new ConflictException('La automatización comercial está suspendida en este chat.')
       const scope = transactionScope(tx)
       const commercial = new CommercialService(scope, this.tenant)
       const tools = new CustomerToolsService(scope, this.tenant, commercial,
@@ -156,7 +172,7 @@ export class AgentTurnsService {
         }
       }
       let handoff = conversation.status === 'HANDOFF'
-      if (saved?.task !== undefined) {
+      if (saved?.task !== undefined && (conversation.automationMode ?? 'AUTO') === 'AUTO') {
         const plan = reviewPlanSchema.parse(saved)
         if (!reviewTypesByStatus[plan.status]?.includes(plan.task)) throw new ConflictException('La tarea no corresponde al plan del turno.')
         // The source chat is known; do not guess a job or claim a payment has
@@ -171,9 +187,10 @@ export class AgentTurnsService {
         }
       }
       const text = handoff ? 'Claro, tu consulta queda pendiente de atención del encargado.' : reply
-      const outbox = await tx.agentOutbox.create({ data: { tenantId: this.tenantId, turnId: turn.id, conversationId: turn.conversationId,
-        sequence: 0, type: 'TEXT', payload: { text, handoffAcknowledgement: handoff } } })
-      const result = { text, outboxId: outbox.id }
+      const send = saved?.silent !== true && maySendAutomatically(conversation,saved?.internalReply === true)
+      const outbox = send ? await tx.agentOutbox.create({ data: { tenantId: this.tenantId, turnId: turn.id, conversationId: turn.conversationId,
+        sequence: 0, type: 'TEXT', payload: { text, handoffAcknowledgement: handoff, ...(saved?.internalReply === true ? { internalReply:true, actorId:typeof saved.actorId === 'string' ? saved.actorId : null, requiredPermission:typeof saved.requiredPermission === 'string' ? saved.requiredPermission : null } : {}) } } }) : null
+      const result = { text, outboxId: outbox?.id ?? null }
       await tx.agentTurn.update({ where: { id: turn.id }, data: { status: 'COMPLETED', result } })
       await tx.conversationMessage.updateMany({ where: { conversationId: turn.conversationId, direction: 'INBOUND',
         id: { in: idsSchema.parse(turn.sourceMessageIds) } }, data: { status: 'PROCESSED', processedAt: new Date() } })

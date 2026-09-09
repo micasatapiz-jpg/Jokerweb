@@ -95,6 +95,7 @@ function worker() {
   const salesAgent = {
     interpreterContext: vi.fn().mockResolvedValue(undefined),
     executePlan: vi.fn().mockImplementation(async (_handle, plan) => plan.reply),
+    preflightTurn: vi.fn().mockResolvedValue(null),
     claimTurn: vi.fn().mockResolvedValue({
       status: 'CLAIMED',
       handle,

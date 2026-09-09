@@ -21,10 +21,11 @@ export class CommercialService {
 
   async ensureContact(input: unknown) {
     const data = contactInputSchema.parse(input)
-    return this.db.contactProfile.upsert({
+    const contact = await this.db.contactProfile.upsert({
       where: { tenantId_phone: { tenantId: this.tenantId, phone: data.phone } },
       create: { ...data, tenantId: this.tenantId }, update: { name: data.name, company: data.company },
     })
+    return { ...contact, phone:data.phone }
   }
 
   async updatePreferences(id: string, input: unknown) {

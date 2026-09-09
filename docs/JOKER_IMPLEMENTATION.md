@@ -1,5 +1,13 @@
 # Joker IA — avance y criterios de cierre
 
+> **Bloque actores/seguridad local, 2026-09-08:** infraestructura de OWNER configurable,
+> empleados aprobados, permisos, modos por chat, etiquetas, cola de revisión,
+> instrucciones determinísticas, pedidos manuales y documentos DRAFT.
+> Validación: **329/329 tests**, sin omisiones en PostgreSQL aislado
+> (248 unitarios/contratos + 81 integración; 88 nuevos). Build y typecheck correctos.
+> Guía y límites: [JOKER_ACTORS_SECURITY_AND_AUTOMATION.md](JOKER_ACTORS_SECURITY_AND_AUTOMATION.md).
+> Rama `joker-agent-core-avance`. No modifica producción ni activa APIs/deploy.
+
 > **Checkpoint comercial previo a OpenAI/deploy, 2026-09-08:** 241 pruebas aprobadas,
 > 0 omitidas con PostgreSQL aislado (206 unitarias/contratos + 35 integración, 20 archivos).
 > Herramientas conectadas al plan durable, cinco modalidades genéricas, intérprete OpenAI

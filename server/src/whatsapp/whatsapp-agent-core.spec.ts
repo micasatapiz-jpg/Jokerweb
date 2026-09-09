@@ -22,6 +22,7 @@ describe('WhatsAppProcessorService - Agent Core bridge', () => {
     }
 
     const salesAgent = {
+      preflightTurn: vi.fn().mockResolvedValue(null),
       interpreterContext: vi.fn().mockResolvedValue(undefined),
       claimTurn: vi.fn().mockResolvedValue({
         status: 'CLAIMED',

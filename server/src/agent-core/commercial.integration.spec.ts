@@ -264,6 +264,7 @@ describe.skipIf(!testUrl)('CommercialService / PostgreSQL aislado', () => {
     if (claim.status !== 'CLAIMED') throw new Error('No claim')
     await turns.savePlan(claim.handle, { status: 'HANDOFF', task: 'CONTACT_CUSTOMER', reply: 'Le aviso al encargado.' })
     const result = await turns.complete(claim.handle, 'Le aviso al encargado.')
+    if (!result.outboxId) throw new Error('El acuse debe tener outbox')
     expect((await db.conversation.findUniqueOrThrow({ where: { id: chat.id } })).status).toBe('HANDOFF')
     expect(await db.task.count({ where: { conversationId: chat.id, dedupeKey: `turn-plan:${claim.handle.turnId}` } })).toBe(1)
     expect((await db.agentOutbox.findUniqueOrThrow({ where: { id: result.outboxId } })).payload).toMatchObject({ handoffAcknowledgement: true })
@@ -307,7 +308,8 @@ describe.skipIf(!testUrl)('CommercialService / PostgreSQL aislado', () => {
       const turn = await turns.claimNext(chat.id)
       if (turn.status !== 'CLAIMED') throw new Error('No claim')
       const output = await turns.complete(turn.handle, 'Salida fixture')
-      return { chat, turn, output }
+      if (!output.outboxId) throw new Error('El fixture AUTO debe producir un outbox')
+      return { chat, turn, output: { ...output, outboxId:output.outboxId } }
     }
     const ready = await fixture()
     const interrupted = await fixture()

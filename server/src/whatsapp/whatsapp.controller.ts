@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res } from '@nestjs/common'
+import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res, UseGuards, ForbiddenException } from '@nestjs/common'
+import { OperatorApiGuard, OperatorPermission } from '../common/operator-api.guard.js'
 import { ConfigService } from '@nestjs/config'
 import type { RawBodyRequest } from '@nestjs/common'
 import type { FastifyReply, FastifyRequest } from 'fastify'
@@ -56,6 +57,7 @@ export class WhatsAppController {
           const input: IncomingMessage = {
             externalMessageId: message.id,
             from: message.from,
+            source: this.gateway.mode === 'cloud' ? 'VERIFIED_WEBHOOK' : 'SIMULATION',
             customerName: name,
             type: message.type === 'image' ? 'IMAGE' : message.type === 'audio' ? 'AUDIO' : message.type === 'document' ? 'DOCUMENT' : 'TEXT',
             text: message.text?.body ?? message.image?.caption ?? message.document?.caption,
@@ -74,11 +76,13 @@ export class WhatsAppController {
 
   @Post('simulate')
   async simulate(@Body(new ZodValidationPipe(simulateWhatsAppSchema)) input: SimulateWhatsAppInput) {
+    if (this.gateway.mode !== 'simulate') throw new ForbiddenException('Simulador deshabilitado en modo cloud.')
     let conversationId = ''
     for (const [index, message] of input.messages.entries()) {
       const result = await this.conversations.ingest({
         externalMessageId: `local-${Date.now()}-${index}`,
         from: input.from,
+        source: 'SIMULATION',
         customerName: input.name,
         type: message.type.toUpperCase() as IncomingMessage['type'],
         text: message.text,
@@ -98,11 +102,15 @@ export class WhatsAppController {
   }
 
   @Get('conversations')
+  @UseGuards(OperatorApiGuard)
+  @OperatorPermission('MANAGE_INTERNAL_CONVERSATIONS')
   conversationsList() {
     return this.conversations.list()
   }
 
   @Post('conversations/:conversationId/deliver-quote/:quoteId')
+  @UseGuards(OperatorApiGuard)
+  @OperatorPermission('SEND_QUOTE')
   deliverQuote(
     @Param('conversationId', ParseUUIDPipe) conversationId: string,
     @Param('quoteId', ParseUUIDPipe) quoteId: string,

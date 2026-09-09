@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { Prisma, type AgentOutbox } from '../generated/prisma/client.js'
 import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
+import { maySendAutomatically, hasPermission, permissionSchema } from './actor-policy.js'
 
 const handleSchema = z.object({ outboxId: z.uuid(), leaseOwner: z.uuid() }).strict()
 export type OutboxHandle = z.infer<typeof handleSchema>
@@ -32,6 +33,19 @@ export class AgentOutboxService {
         orderBy: [{ createdAt: 'asc' }, { sequence: 'asc' }, { id: 'asc' }] })
       if (!row) return { status: 'EMPTY' as const }
       const disposition = outboxDisposition(row)
+      const authorization = row.payload as { actorId?:string; requiredPermission?:string }
+      if (disposition === 'SEND' && authorization.requiredPermission) {
+        const permission = permissionSchema.safeParse(authorization.requiredPermission)
+        const actor = authorization.actorId ? await tx.actorIdentity.findFirst({ where:{ id:authorization.actorId,tenantId:this.tenantId,active:true } }) : null
+        if (!permission.success || !hasPermission(actor,permission.data)) {
+          await tx.agentOutbox.update({ where:{ id:row.id },data:{ status:'CANCELLED' } })
+          return { status:'CANCELLED' as const }
+        }
+      }
+      if (disposition === 'SEND' && !maySendAutomatically(conversation,(row.payload as Record<string, unknown>)?.internalReply === true)) {
+        await tx.agentOutbox.update({ where:{ id:row.id },data:{ status:'CANCELLED' } })
+        return { status:'PAUSED' as const }
+      }
       if (disposition === 'UNCERTAIN') {
         await tx.agentOutbox.update({ where: { id: row.id }, data: { status: 'UNCERTAIN' } })
         await this.reviewTask(tx, row, 'PROCESS_INTERRUPTED_DURING_SEND')
@@ -77,7 +91,7 @@ export class AgentOutboxService {
         ((existing.payload as { outboxId?: string } | null)?.outboxId && (existing.payload as { outboxId: string }).outboxId !== row.id))) throw new ConflictException('El identificador externo corresponde a otro mensaje.')
       const updated = await tx.agentOutbox.update({ where: { id: row.id }, data: { status: 'SENT', externalMessageId, sentAt: new Date() } })
       await tx.conversationMessage.upsert({ where: { conversationId_externalMessageId: { conversationId: row.conversationId, externalMessageId } },
-        create: { conversationId: row.conversationId, externalMessageId, direction: 'OUTBOUND', type: row.type, status: 'SENT',
+        create: { conversationId: row.conversationId, externalMessageId, direction: 'OUTBOUND', type: row.type, status: 'SENT', authorType:'AI_AGENT', source:'AGENT_OUTBOX',
           text,
           payload: { outboxId: row.id, turnId: row.turnId } }, update: {} })
       await tx.task.updateMany({ where: { tenantId: this.tenantId, dedupeKey: `outbox-review:${row.id}`, status: { in: ['OPEN', 'IN_PROGRESS'] } },
