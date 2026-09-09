@@ -5,6 +5,9 @@ import { interpretOwnerInstruction } from './owner-instruction-interpreter.js'
 import { OperatorControlsService, type OperatorCommand } from './operator-controls.service.js'
 import { HeuristicAgentInterpreter } from './agent-interpreter.service.js'
 import { ownerCommercialLearning } from './owner-commercial-learning.js'
+import { interruptWorkflows } from './workflow-operations.service.js'
+import { WorkflowOperationsService } from './workflow-operations.service.js'
+import { transactionScope } from './transaction-scope.js'
 
 const plan = (reply: string, silent = false, internalReply = false) => ({ status:'CONTROLLED',reply,tools:[],silent,internalReply })
 
@@ -48,6 +51,7 @@ export async function controlConversation(tx: Prisma.TransactionClient, tenantId
   }
   if (count !== chat.outOfScopeCount) await tx.conversation.update({ where:{ id:chat.id },data:{ outOfScopeCount:count } })
   if (block) {
+    await interruptWorkflows(tx,tenantId,chat.id,'SECURITY',source.id)
     // Security policy limits automation without blocking or deleting the contact.
     if (chat.automationMode === 'AUTO') {
       await tx.conversation.update({ where:{ id:chat.id },data:{ automationMode:'ASSIST' } })
@@ -57,6 +61,14 @@ export async function controlConversation(tx: Prisma.TransactionClient, tenantId
   }
   if (internal && messages.every(m => m.type === 'TEXT')) {
     if(actor?.type==='OWNER') {
+      const operations=new WorkflowOperationsService(transactionScope(tx),{tenantId} as never)
+      const normalized=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()
+      if(/^(que tienes pendiente|que debo aprobar|que necesita mi decision)\??$/.test(normalized)) {
+        const result=await operations.pending(source.id)
+        return plan(chat.role==='OWNER_PRIVATE'?JSON.stringify(result).slice(0,3900):'Consulta disponible solo en el chat privado del propietario.',chat.role!=='OWNER_PRIVATE',true)
+      }
+      const resume=/^reanudar workflow ([0-9a-f-]{36})$/.exec(normalized)
+      if(resume){await operations.manualResume(source.id,resume[1]!);return plan('Reanudación autorizada para revisar el plan guardado. No confirma pagos ni producción.',false,true)}
       const learning=await ownerCommercialLearning(tx,{tenantId} as never,source.id,text)
       if(learning)return learning
     }
@@ -116,5 +128,12 @@ export async function controlConversation(tx: Prisma.TransactionClient, tenantId
   }
   if (outOfScope) return plan('Puedo ayudarte con productos, pedidos y cotizaciones de Joker. ¿Qué necesitas?')
   if (internal || chat.role === 'OWNER_PRIVATE') return plan('Mensaje interno registrado.',true)
+  const intent=await new HeuristicAgentInterpreter().interpret({text})
+  if(intent.intent==='SOLICITA_HUMANO'||intent.intent==='RECLAMO') {
+    await tx.task.upsert({where:{tenantId_dedupeKey:{tenantId,dedupeKey:`handoff:${source.id}`}},create:{tenantId,conversationId:chat.id,type:'CONTACT_CUSTOMER',title:'Solicitud de atención humana',dedupeKey:`handoff:${source.id}`,details:{sourceMessageId:source.id,reason:intent.intent}},update:{}})
+    await interruptWorkflows(tx,tenantId,chat.id,intent.intent==='SOLICITA_HUMANO'?'HUMAN_REQUEST':'COMPLAINT',source.id)
+    await tx.conversation.update({where:{id:chat.id},data:{automationMode:'HUMAN_TAKEOVER',status:'HANDOFF'}})
+    return plan('Atención humana solicitada; contexto conservado.',true)
+  }
   return null
 }

@@ -252,8 +252,9 @@ describe.skipIf(!testUrl)('CommercialService / PostgreSQL aislado', () => {
     expect(await db.agentTurn.count({ where: { tenantId: flowTenantId, status: 'COMPLETED' } })).toBe(1)
     expect(await db.task.count({ where: { tenantId: flowTenantId, type: task, status: 'OPEN' } })).toBe(1)
     expect((await db.conversation.findUniqueOrThrow({ where: { id: chat.id } })).status === 'HANDOFF').toBe(handoff)
-    expect(await db.conversationMessage.count({ where: { conversationId: chat.id, direction: 'OUTBOUND', status: 'SENT' } })).toBe(1)
-    expect(gateway.sendTextRaw).toHaveBeenCalledOnce()
+    // Explicit takeover now forbids even the automatic acknowledgement.
+    expect(await db.conversationMessage.count({ where: { conversationId: chat.id, direction: 'OUTBOUND', status: 'SENT' } })).toBe(handoff ? 0 : 1)
+    expect(gateway.sendTextRaw).toHaveBeenCalledTimes(handoff ? 0 : 1)
   })
 
   it('completar el plan persiste tarea y acuse humano juntos; no confirma pagos ni permite tareas privilegiadas', async () => {

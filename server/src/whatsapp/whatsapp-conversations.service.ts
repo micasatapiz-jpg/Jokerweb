@@ -24,8 +24,10 @@ export class WhatsAppConversationsService {
   ) {}
 
   async ingest(input: IncomingMessage) {
+    return this.prisma.$transaction(async tx=>{
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${this.tenant.tenantId+':chat:'+input.from},0))`
     const now = new Date()
-    const conversation = await this.prisma.conversation.upsert({
+    const conversation = await tx.conversation.upsert({
       where: {
         tenantId_channel_externalId: {
           tenantId: this.tenant.tenantId,
@@ -49,7 +51,7 @@ export class WhatsAppConversationsService {
     })
 
     if (input.externalMessageId) {
-      const duplicate = await this.prisma.conversationMessage.findUnique({
+      const duplicate = await tx.conversationMessage.findUnique({
         where: {
           conversationId_externalMessageId: {
             conversationId: conversation.id,
@@ -61,9 +63,9 @@ export class WhatsAppConversationsService {
     }
 
     const actor = input.source === 'VERIFIED_WEBHOOK'
-      ? await this.prisma.actorIdentity.findFirst({ where:{ tenantId:this.tenant.tenantId,channel:'WHATSAPP',externalSubject:input.from,active:true } })
+      ? await tx.actorIdentity.findFirst({ where:{ tenantId:this.tenant.tenantId,channel:'WHATSAPP',externalSubject:input.from,active:true } })
       : null
-    await this.prisma.conversationMessage.create({
+    const saved=await tx.conversationMessage.create({
       data: {
         conversationId: conversation.id,
         externalMessageId: input.externalMessageId,
@@ -82,9 +84,11 @@ export class WhatsAppConversationsService {
       },
     })
 
+    if(!actor)await emitStoredEvent(tx,this.tenant.tenantId,{conversationId:conversation.id,type:input.type==='TEXT'?'CUSTOMER_MESSAGE_RECEIVED':'CUSTOMER_FILE_RECEIVED',actorType:'CUSTOMER',sourceKey:`customer-received:${saved.id}`,payload:{sourceMessageId:saved.id,fileType:input.type,correlated:false}})
     const shouldGreet = !conversation.greetedAt
     // Acknowledgement is recorded by the worker only after the buffered greeting is sent.
     return { conversation, duplicate: false, shouldGreet }
+    })
   }
 
   async recordOutbound(
@@ -119,3 +123,4 @@ export class WhatsAppConversationsService {
     })
   }
 }
+import { emitStoredEvent } from '../agent-core/agent-event-store.js'

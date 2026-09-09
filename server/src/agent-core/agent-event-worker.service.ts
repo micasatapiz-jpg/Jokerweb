@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { AgentOrchestratorService } from './agent-orchestrator.service.js'
+import { deferStoredEvent } from './agent-event-store.js'
 
 const WORKER_INTERVAL_MS = 2_000
 
@@ -134,6 +135,7 @@ export class AgentEventWorkerService
    */
   async processPendingEvents(
     limit = 100,
+    now = new Date(),
   ) {
     const safeLimit =
       Math.max(
@@ -152,6 +154,8 @@ export class AgentEventWorkerService
 
           consumedAt:
             null,
+          processingFailedAt: null,
+          OR: [{nextAttemptAt:null},{nextAttemptAt:{lte:now}}],
         },
 
         orderBy: {
@@ -178,6 +182,7 @@ export class AgentEventWorkerService
         const result =
           await this.orchestrator.resumeFromEvent(
             event.id,
+            now,
           )
 
         if (
@@ -208,6 +213,11 @@ export class AgentEventWorkerService
             result.reason,
         })
       } catch (error) {
+        await this.db.$transaction(async tx => {
+          await tx.$queryRaw`SELECT id FROM "AgentEvent" WHERE id=${event.id}::uuid AND "tenantId"=${this.tenantId}::uuid FOR UPDATE`
+          const current=await tx.agentEvent.findFirstOrThrow({where:{id:event.id,tenantId:this.tenantId}})
+          if(!current.nextAttemptAt || current.nextAttemptAt<=now)await deferStoredEvent(tx,this.tenantId,event.id,'PROCESSING_ERROR',now)
+        })
         results.push({
           eventId:
             event.id,
@@ -326,17 +336,17 @@ export class AgentEventWorkerService
   async processOnce(
     now = new Date(),
   ) {
-    const timers =
-      await this.createDueTimerEvents(
-        now,
-      )
-
-    const events =
-      await this.processPendingEvents()
-
-    return {
-      timers,
-      events,
+    const timers={due:0,createdOrExisting:0},events={scanned:0,resumed:0}
+    // Enumerate tenants with durable work. No default-tenant impersonation.
+    const tenants=await this.db.tenant.findMany({where:{agentProcessingEnabled:true},select:{id:true},orderBy:{id:'asc'}})
+    for(const tenant of tenants){
+      const scope={tenantId:tenant.id} as LocalTenantService
+      const processor=new AgentEventWorkerService(this.db,scope,new AgentOrchestratorService(this.db,scope))
+      const timerResult=await processor.createDueTimerEvents(now)
+      const eventResult=await processor.processPendingEvents(100,now)
+      timers.due+=timerResult.due;timers.createdOrExisting+=timerResult.createdOrExisting
+      events.scanned+=eventResult.scanned;events.resumed+=eventResult.resumed
     }
+    return {timers,events}
   }
 }

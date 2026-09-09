@@ -6,6 +6,8 @@ import { LocalTenantService } from '../common/local-tenant.service.js'
 import { contactInputSchema, createApprovalSchema, createJobSchema, createTaskSchema, preferencesSchema, summaryInputSchema } from './commercial.schemas.js'
 import { jobEventSchema, transitionJob, type TrustedActor } from './job-state.js'
 import { quoteWorkflowSnapshotSchema } from './quote-workflow.service.js'
+import { emitStoredEvent } from './agent-event-store.js'
+import { interruptWorkflows } from './workflow-operations.service.js'
 
 const json = (value: unknown) => value as Prisma.InputJsonValue
 
@@ -95,6 +97,8 @@ export class CommercialService {
         data: { status: decision, reviewedBy: actor.id, reviewedAt: new Date(), reviewNote: note.slice(0, 4000) } })
       if (updated.count !== 1) throw new ConflictException('Aprobación inexistente o ya revisada.')
       await tx.auditLog.create({ data: { tenantId: this.tenantId, action: `APPROVAL_${decision}`, entityType: 'Approval', entityId: id, details: { actorId: actor.id, note } } })
+      const job=await tx.job.findFirstOrThrow({where:{id:pending!.jobId,tenantId:this.tenantId}})
+      await emitStoredEvent(tx,this.tenantId,{type:'APPROVAL_RESOLVED',jobId:job.id,conversationId:job.conversationId??undefined,actorType:'OWNER',sourceKey:`approval-resolved:${id}`,payload:{approvalId:id,decision,requirementsRevision:job.requirementsRevision,jobVersion:job.version}})
       return tx.approval.findUniqueOrThrow({ where: { id } })
     })
   }
@@ -148,10 +152,12 @@ export class CommercialService {
       }
       await tx.jobEvent.create({ data: { tenantId: this.tenantId, jobId, eventKey: event.eventKey, type: event.type,
         actorId: actor.id, actorRole: actor.role, evidence: event.evidence, fromStatus: job.status, toStatus: next.status, payload: json(event) } })
+      if(event.type==='PAYMENT_REPORTED'||event.type==='REQUIREMENTS_CHANGED')await emitStoredEvent(tx,this.tenantId,{type:event.type==='PAYMENT_REPORTED'?'PAYMENT_REPORTED':'JOB_REQUIREMENTS_UPDATED',jobId,conversationId:job.conversationId??undefined,actorType:actor.role==='OWNER'?'OWNER':actor.role==='CUSTOMER'?'CUSTOMER':'SYSTEM',sourceKey:`job-event:${event.eventKey}`,payload:{jobId,requirementsRevision:job.requirementsRevision+(event.type==='REQUIREMENTS_CHANGED'?1:0),paymentConfirmed:false}})
       if (next.task) await tx.task.create({ data: { tenantId: this.tenantId, jobId, conversationId: job.conversationId,
         type: next.task, title: event.evidence.slice(0, 200), details: json(event), dedupeKey: `event:${event.eventKey}` } })
       if (job.conversationId && ['REQUEST_HUMAN', 'COMPLAINT'].includes(event.type)) {
-        await tx.conversation.updateMany({ where: { id: job.conversationId, tenantId: this.tenantId }, data: { status: 'HANDOFF' } })
+        await tx.conversation.updateMany({ where: { id: job.conversationId, tenantId: this.tenantId }, data: { status: 'HANDOFF',automationMode:'HUMAN_TAKEOVER' } })
+        await interruptWorkflows(tx,this.tenantId,job.conversationId,event.type,event.eventKey)
       }
       await tx.auditLog.create({ data: { tenantId: this.tenantId, action: event.type, entityType: 'Job', entityId: jobId,
         details: { actorId: actor.id, fromStatus: job.status, toStatus: next.status, eventKey: event.eventKey } } })

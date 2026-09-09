@@ -351,6 +351,11 @@ model AgentWorkflowStep {
 }
 
 model AgentEvent {
+  processingAttempts Int @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+  lastProcessingReason String?
+  processingFailedAt DateTime?
   id             String         @id @default(uuid()) @db.Uuid
   tenantId       String         @db.Uuid
   workflowId     String?        @db.Uuid
@@ -367,6 +372,7 @@ model AgentEvent {
 workflow AgentWorkflow? @relation(fields: [tenantId, workflowId], references: [tenantId, id], onDelete: Restrict)
 
   @@unique([tenantId, sourceKey])
+  @@index([tenantId, consumedAt, processingFailedAt, nextAttemptAt])
   @@index([tenantId, type, consumedAt, createdAt])
   @@index([tenantId, workflowId])
 }
@@ -443,6 +449,7 @@ enum ConversationMessageStatus {
 }
 
 model Tenant {
+  agentProcessingEnabled Boolean @default(true)
   commercialKnowledge CommercialKnowledge[]
   ruleSuggestions     CommercialRuleSuggestion[]
   agentWorkflows      AgentWorkflow[]

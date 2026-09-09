@@ -259,7 +259,9 @@ describe.skipIf(!testUrl)('Actores y seguridad: PostgreSQL aislado',() => {
     expect(doc.status).toBe('DRAFT')
   })
   it('no mezcla remitentes en un turno de chat interno',async () => {
-    const h = await setup(); await h.message(h.chat.id,'pausa este chat','VERIFIED_WEBHOOK',h.owner.externalSubject)
+    const h = await setup(); const first=await h.message(h.chat.id,'pausa este chat','VERIFIED_WEBHOOK',h.owner.externalSubject)
+    // Fix fixture chronology explicitly: PostgreSQL timestamps have millisecond precision.
+    await db.conversationMessage.update({where:{id:first.id},data:{createdAt:new Date(Date.now()-1000)}})
     await h.message(h.chat.id,'atiende otra vez este chat','SIMULATION',h.owner.externalSubject)
     const { claim } = await h.run()
     expect(claim.sourceMessageIds).toHaveLength(1)

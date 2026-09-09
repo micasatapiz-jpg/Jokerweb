@@ -36,7 +36,9 @@ try {
     await client.query('CREATE DATABASE joker_core_test')
   } finally { await client.end() }
   await run(process.execPath, [path.join(serverDir, 'node_modules/prisma/build/index.js'), 'db', 'push'])
-  await run(process.execPath, [path.join(serverDir, 'node_modules/vitest/vitest.mjs'), 'run'])
+  // Global-worker suites intentionally enumerate all tenants; don't let distinct
+  // files operate on each other's live fixtures. Replica races remain explicit tests.
+  await run(process.execPath, [path.join(serverDir, 'node_modules/vitest/vitest.mjs'), 'run', '--no-file-parallelism'])
 } finally {
   if (started) await run(binaries.pg_ctl, ['-D', cluster, '-m', 'fast', '-w', 'stop'])
   console.log(`Isolated test files retained (server stopped): ${cluster}`)

@@ -66,6 +66,8 @@ function harness() {
   let approval: any = null
   const events: any[] = []
   const tx = {
+    $executeRaw: vi.fn().mockResolvedValue(1),
+    agentEvent: {upsert:vi.fn().mockImplementation(async({create})=>({id:randomUUID(),jobId:null,actorType:null,...create,conversationId:create.conversationId??null,workflowId:create.workflowId??null}))},
     $queryRaw: vi.fn().mockResolvedValue([]),
     job: { findFirst: vi.fn().mockImplementation(async () => ({ ...job })), update: vi.fn().mockImplementation(async ({ data }) => {
       Object.assign(job, data, { version: job.version + 1 }); return { ...job }
@@ -82,7 +84,7 @@ function harness() {
     }), update: vi.fn().mockImplementation(async ({ data }) => { Object.assign(quote, data); return quote }), updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     approval: { create: vi.fn().mockImplementation(async ({ data }) => { approval = { ...data, id: randomUUID(), status: 'PENDING' }; return approval }),
       findFirst: vi.fn().mockImplementation(async () => approval), update: vi.fn().mockImplementation(async ({ data }) => { Object.assign(approval, data); return approval }), updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
-    task: { create: vi.fn().mockImplementation(async ({ data }) => ({ ...data, id: randomUUID() })), updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    task: { upsert:vi.fn().mockImplementation(async({create})=>({...create,id:randomUUID()})),create: vi.fn().mockImplementation(async ({ data }) => ({ ...data, id: randomUUID() })), updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
   }
   const db = { $transaction: async (callback: (tx: any) => Promise<unknown>) => callback(tx) } as unknown as PrismaService
@@ -120,7 +122,7 @@ describe('QuoteWorkflowService con persistencia simulada, sin servicios externos
     if (missing === 'validity') h.config.rules.quotationRules.validityDays = null
     expect((await h.service.createDraft(h.input, h.actor)).status).toBe('RULE_NOT_CONFIGURED')
     expect(h.tx.quote.create).not.toHaveBeenCalled()
-    expect(h.tx.task.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ type: 'CHECK_PRODUCT_RULE' }) }))
+    expect(h.tx.task.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ type: 'CHECK_PRODUCT_RULE' }) }))
   })
   it('no asume un nombre de cliente ni medidas que faltan', async () => {
     const h = harness()

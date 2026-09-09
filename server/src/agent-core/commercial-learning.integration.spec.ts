@@ -7,6 +7,9 @@ import { OperatorControlsService } from './operator-controls.service.js'
 import { CommercialKnowledgeService } from './commercial-knowledge.service.js'
 import { AgentTurnsService } from './agent-turns.service.js'
 import { AgentOutboxService } from './agent-outbox.service.js'
+import { AgentEventWorkerService } from './agent-event-worker.service.js'
+import { AgentOrchestratorService } from './agent-orchestrator.service.js'
+import { WorkflowOperationsService } from './workflow-operations.service.js'
 import { pdfCapabilities,pdfSource,pdfTariffs } from './joker-pdf-reference.fixtures.js'
 const url=process.env.TEST_DATABASE_URL
 if(url){const parsed=new URL(url);if(!['127.0.0.1','localhost'].includes(parsed.hostname)||parsed.pathname!=='/joker_core_test')throw new Error('Solo PostgreSQL aislado')}
@@ -165,6 +168,15 @@ describe.skipIf(!url)('Aprendizaje y Understanding v2 PostgreSQL',()=>{
   it('OWNER aprende en dos turnos: borrador y alcance confirmado',async()=>{
     const h=await setup(true);await h.incoming('gigantografia de persona MDF');await h.run()
     const review=await db.ownerReview.findFirstOrThrow({where:{tenantId:h.tenantId,reason:'COMMERCIAL_KNOWLEDGE_REQUIRED'}})
+    const workflow=await db.agentWorkflow.findFirstOrThrow({where:{tenantId:h.tenantId}})
+    expect(workflow.state).toBe('WAITING_OWNER')
+    expect(workflow.contextJson).toMatchObject({ownerReviewId:review.id})
+    expect(workflow.taskId).not.toBeNull()
+    const query=await h.source()
+    const pending=await new WorkflowOperationsService(db,h.tenant).pending(query.id)
+    expect(pending.chains).toHaveLength(1);expect(pending.unlinked.reviews).toHaveLength(0);expect(pending.unlinked.tasks).toHaveLength(0)
+    expect(pending.chains[0]).toMatchObject({waitingReason:'COMMERCIAL_KNOWLEDGE_REQUIRED',ownerReview:{id:review.id}})
+    await db.conversationMessage.update({where:{id:query.id},data:{status:'PROCESSED'}})
     const source=await h.source(`conocimiento para revision ${review.id}: esta vez cobra 400`)
     await h.run(h.ownerChat.id)
     const entry=await db.commercialKnowledge.findUniqueOrThrow({where:{tenantId_requestKey:{tenantId:h.tenantId,requestKey:source.id}}})
@@ -172,6 +184,11 @@ describe.skipIf(!url)('Aprendizaje y Understanding v2 PostgreSQL',()=>{
     await h.source(`alcance ${entry.id} solo este trabajo`);await h.run(h.ownerChat.id)
     expect(await db.commercialKnowledge.findUnique({where:{id:entry.id}})).toMatchObject({status:'VERIFIED_REFERENCE',scope:'THIS_JOB'})
     expect(await db.priceRule.count({where:{tenantId:h.tenantId}})).toBe(0)
+    const worker=new AgentEventWorkerService(db,h.tenant,new AgentOrchestratorService(db,h.tenant))
+    await worker.processPendingEvents();await worker.processPendingEvents()
+    expect((await db.agentWorkflow.findUniqueOrThrow({where:{id:workflow.id}})).state).toBe('RUNNING')
+    expect(await db.agentWorkflow.count({where:{tenantId:h.tenantId}})).toBe(1)
+    expect(await db.auditLog.count({where:{tenantId:h.tenantId,action:'WORKFLOW_RESUMED'}})).toBe(1)
   })
   it('repetir una explicación sin tres trabajos distintos no sugiere regla',async()=>{
     const h=await setup()

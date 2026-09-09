@@ -14,7 +14,7 @@ export async function ownerCommercialLearning(tx:Prisma.TransactionClient,tenant
     const review=await tx.ownerReview.findFirst({where:{id:id.data,tenantId:tenant.tenantId,reason:'COMMERCIAL_KNOWLEDGE_REQUIRED'}})
     if(!review)return reply('No encuentro esa revisión en este negocio.')
     const details=review.details as {jobId?:string;components?:{key:string}[]}
-    const entry=await service.propose(sourceId,{title:'Respuesta comercial del dueño',componentKey:details.components?.[0]?.key??'special',sourceJobId:details.jobId,applicability:{materials:[],configurationId:null}})
+    const entry=await service.propose(sourceId,{title:'Respuesta comercial del dueño',ownerReviewId:review.id,componentKey:details.components?.[0]?.key??'special',sourceJobId:details.jobId,applicability:{materials:[],configurationId:null}})
     return reply(`Guardé un borrador ${entry.id}. Confirma alcance: solo este trabajo, referencia reutilizable o candidato a regla permanente. No publiqué tarifas.`)
   }
   const confirm=/^alcance ([0-9a-f-]{36}) (solo este trabajo|referencia reutilizable|regla permanente)$/i.exec(text.trim())

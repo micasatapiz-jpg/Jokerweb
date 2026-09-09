@@ -183,10 +183,15 @@ export class AgentTurnsService {
         if (!reviewTypesByStatus[plan.status]?.includes(plan.task)) throw new ConflictException('La tarea no corresponde al plan del turno.')
         // The source chat is known; do not guess a job or claim a payment has
         // been verified. Job-specific execution remains in the tool layer.
-        await tx.task.upsert({ where: { tenantId_dedupeKey: { tenantId: this.tenantId, dedupeKey: `turn-plan:${turn.id}` } },
+        const task=await tx.task.upsert({ where: { tenantId_dedupeKey: { tenantId: this.tenantId, dedupeKey: `turn-plan:${turn.id}` } },
           create: { tenantId: this.tenantId, conversationId: turn.conversationId, type: plan.task,
             title: plan.reply.slice(0, 200), dedupeKey: `turn-plan:${turn.id}`,
             details: { turnId: turn.id, sourceMessageIds: idsSchema.parse(turn.sourceMessageIds), decisionStatus: plan.status } }, update: {} })
+        if(plan.task==='CHECK_PRODUCT_RULE'){
+          const tenantId=this.tenantId,correlationKey=`turn-plan:${turn.id}`
+          const review=await tx.ownerReview.upsert({where:{tenantId_dedupeKey:{tenantId,dedupeKey:correlationKey}},create:{tenantId,conversationId:conversation.id,sourceMessageId:idsSchema.parse(turn.sourceMessageIds)[0]!,reason:'COMMERCIAL_KNOWLEDGE_REQUIRED',risk:30,recommendedAction:'KEEP_ACTIVE',dedupeKey:correlationKey,details:{components:[{key:'productRule'}]}},update:{}})
+          await ensureCommercialWait(tx,tenantId,{conversationId:conversation.id,taskId:task.id,ownerReviewId:review.id,correlationKey})
+        }
         if (plan.status === 'HANDOFF') {
           handoff = true
           await tx.conversation.update({ where: { id: conversation.id }, data: { status: 'HANDOFF' } })
@@ -220,3 +225,4 @@ export class AgentTurnsService {
         dedupeKey: `turn-review:${turn.id}`, details: { turnId: turn.id, code } }, update: {} })
   }
 }
+import { ensureCommercialWait } from './commercial-wait-workflow.js'

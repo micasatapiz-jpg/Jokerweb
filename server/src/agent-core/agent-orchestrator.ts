@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { permissionSchema } from './actor-policy.js'
 
 export const workflowStateSchema = z.enum([
   'READY',
@@ -117,6 +118,9 @@ export const waitForSchema = z.object({
     ownerReviewId: z.uuid().optional(),
     approvalId: z.uuid().optional(),
     knowledgeId: z.uuid().optional(),
+    requiredFields: z.array(z.string().min(1)).max(40).optional(),
+    fileType: z.enum(['IMAGE','DOCUMENT']).optional(),
+    requiredPermission: permissionSchema.optional(),
 
     actorType: actorTypeSchema.optional(),
   }).strict(),
@@ -201,6 +205,8 @@ export interface ResumeCondition {
   ownerReviewId?: string
   approvalId?: string
   knowledgeId?: string
+  requiredFields?: string[]
+  fileType?: 'IMAGE'|'DOCUMENT'
   actorType?: z.infer<typeof actorTypeSchema>
 }
 
@@ -240,6 +246,9 @@ export function eventMatchesResumeCondition(
     ownerReviewId: z.uuid().optional(),
     approvalId: z.uuid().optional(),
     knowledgeId: z.uuid().optional(),
+    requiredFields: z.array(z.string().min(1)).max(40).optional(),
+    fileType: z.enum(['IMAGE','DOCUMENT']).optional(),
+    requiredPermission: permissionSchema.optional(),
     actorType: actorTypeSchema.optional(),
   }).strict().parse(rawCondition)
 
@@ -269,6 +278,8 @@ export function eventMatchesResumeCondition(
   }
 
   const payload = payloadRecord(event.payload)
+  if(condition.requiredFields?.some(key=>!Array.isArray(payload.fields)||!payload.fields.includes(key)))return false
+  if(condition.fileType && payload.fileType!==condition.fileType)return false
 
   if (
     condition.ownerReviewId &&

@@ -4,8 +4,9 @@ import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { AgentOrchestratorService } from './agent-orchestrator.service.js'
 import { AgentEventWorkerService } from './agent-event-worker.service.js'
+import { randomUUID } from 'node:crypto'
 
-const TENANT_ID = '11111111-1111-4111-8111-111111111111'
+const TENANT_ID = randomUUID()
 
 describe('AgentEventWorkerService integration', () => {
   let db: PrismaService
@@ -695,5 +696,222 @@ describe('AgentEventWorkerService integration', () => {
     expect(
       resumeAudits.length,
     ).toBe(1)
+  })
+
+  it('dos réplicas concurrentes consumen el mismo evento una sola vez', async () => {
+    if (!db) return
+
+    const databaseUrl =
+      process.env.TEST_DATABASE_URL ??
+      process.env.DATABASE_URL
+
+    if (!databaseUrl) return
+
+    /*
+     * Segunda conexión PostgreSQL.
+     *
+     * Esto es importante:
+     * no simulamos simplemente dos llamadas
+     * sobre la misma conexión.
+     *
+     * Queremos representar dos instancias
+     * reales del servidor.
+     */
+    const replicaConfig =
+      new ConfigService({
+        DATABASE_URL:
+          databaseUrl,
+
+        DEFAULT_TENANT_ID:
+          TENANT_ID,
+      })
+
+    const replicaDb =
+      new PrismaService(
+        replicaConfig,
+      )
+
+    const replicaTenant =
+      new LocalTenantService(
+        replicaConfig,
+      )
+
+    const replicaOrchestrator =
+      new AgentOrchestratorService(
+        replicaDb,
+        replicaTenant,
+      )
+
+    try {
+      const workflow =
+        await orchestrator.createWorkflow({
+          objective:
+            'Prueba de concurrencia entre réplicas',
+
+          requestKey:
+            `replica-race-${Date.now()}`,
+
+          steps: [
+            {
+              stepKey:
+                'wait-owner',
+
+              type:
+                'ASK_OWNER',
+            },
+          ],
+        })
+
+      await orchestrator.startWorkflow(
+        workflow.id,
+      )
+
+      await orchestrator.wait(
+        workflow.id,
+        {
+          state:
+            'WAITING_OWNER',
+
+          actorType:
+            'OWNER',
+
+          reason:
+            'Esperando evento concurrente',
+
+          resumeCondition: {
+            eventTypes: [
+              'OWNER_MESSAGE_RECEIVED',
+            ],
+
+            actorType:
+              'OWNER',
+          },
+        },
+      )
+
+      const event =
+        await orchestrator.emitEvent({
+          workflowId:
+            workflow.id,
+
+          type:
+            'OWNER_MESSAGE_RECEIVED',
+
+          actorType:
+            'OWNER',
+
+          sourceKey:
+            `replica-race-event-${Date.now()}`,
+
+          payload: {},
+        })
+
+      expect(
+        event.consumedAt,
+      ).toBeNull()
+
+      /*
+       * Ambas réplicas intentan procesar
+       * exactamente el mismo evento.
+       *
+       * El FOR UPDATE en AgentEvent debe
+       * serializar las dos transacciones.
+       */
+      const [
+        first,
+        second,
+      ] =
+        await Promise.all([
+          orchestrator.resumeFromEvent(
+            event.id,
+          ),
+
+          replicaOrchestrator.resumeFromEvent(
+            event.id,
+          ),
+        ])
+
+      const results = [
+        first,
+        second,
+      ]
+
+      /*
+       * Una sola réplica debe conseguir
+       * reanudar el workflow.
+       */
+      expect(
+        results.filter(
+          (result) =>
+            result.resumed,
+        ).length,
+      ).toBe(1)
+
+      /*
+       * La segunda debe encontrar el
+       * evento ya consumido después
+       * de esperar el lock.
+       */
+      expect(
+        results.filter(
+          (result) =>
+            !result.resumed &&
+            result.reason ===
+              'EVENT_ALREADY_CONSUMED',
+        ).length,
+      ).toBe(1)
+
+      const current =
+        await orchestrator.getWorkflow(
+          workflow.id,
+        )
+
+      expect(
+        current.state,
+      ).toBe('RUNNING')
+
+      const storedEvent =
+        await db.agentEvent.findUniqueOrThrow({
+          where: {
+            id:
+              event.id,
+          },
+        })
+
+      expect(
+        storedEvent.consumedAt,
+      ).not.toBeNull()
+
+      /*
+       * La auditoría es una comprobación
+       * adicional muy importante.
+       *
+       * Aunque existieron dos intentos,
+       * solo puede existir un efecto
+       * WORKFLOW_RESUMED.
+       */
+      const audits =
+        await db.auditLog.findMany({
+          where: {
+            tenantId:
+              TENANT_ID,
+
+            entityType:
+              'AgentWorkflow',
+
+            entityId:
+              workflow.id,
+
+            action:
+              'WORKFLOW_RESUMED',
+          },
+        })
+
+      expect(
+        audits.length,
+      ).toBe(1)
+    } finally {
+      await replicaDb.$disconnect()
+    }
   })
 })

@@ -128,6 +128,8 @@ export class OperatorControlsService {
           await tx.actorIdentity.upsert({ where:{ tenantId_channel_externalSubject:{ tenantId:this.tenantId,channel:candidate.conversation.channel,externalSubject:phone } },create:{ tenantId:this.tenantId,contactProfileId:contact.id,externalSubject:phone,channel:candidate.conversation.channel,type:'EMPLOYEE',permissions,verifiedBy:actor.id },update:{} })
         }
         result = await tx.ownerReview.update({ where:{ id:review.id },data:{ status:command.decision === 'REJECT_EMPLOYEE' ? 'REJECTED' : 'APPROVED',ownerDecision:command.decision,resolvedBy:actor.id,resolvedAt:new Date() } })
+        const reviewJobId=(review.details as {jobId?:string}).jobId
+        await emitStoredEvent(tx,this.tenantId,{type:'OWNER_REVIEW_RESOLVED',conversationId:review.conversationId,jobId:reviewJobId,actorType:'OWNER',sourceKey:`owner-review-resolved:${review.id}`,payload:{ownerReviewId:review.id,actorId:actor.id,sourceMessageId:sourceId}})
         await tx.task.updateMany({ where:{ tenantId:this.tenantId,dedupeKey:`owner-review:${review.dedupeKey}` },data:{ status:'DONE',completedAt:new Date() } })
         // BLOCK records an owner decision, never automatically calls a provider API.
       }
@@ -153,3 +155,4 @@ export class OperatorControlsService {
     await tx.auditLog.create({ data:{ tenantId:this.tenantId,action,entityType:'OperatorControl',entityId,details:json({ actorId,before,after,sourceMessageId,reason }) } })
   }
 }
+import { emitStoredEvent } from './agent-event-store.js'

@@ -354,7 +354,10 @@ describe(
         }
 
         const db = {
+          $executeRaw:vi.fn().mockResolvedValue(1),
+          agentEvent:{upsert:vi.fn().mockImplementation(async({create})=>({...create,workflowId:null,jobId:null}))},
           conversation: {
+            findFirst:vi.fn().mockResolvedValue(conversation),
             upsert: vi
               .fn()
               .mockResolvedValue(conversation),
@@ -369,13 +372,13 @@ describe(
 
             create: vi
               .fn()
-              .mockResolvedValue({}),
+              .mockResolvedValue({id:randomUUID()}),
           },
         }
 
         const service =
           new WhatsAppConversationsService(
-            db as any,
+            {...db,$transaction:async(work:Function)=>work(db)} as any,
             {
               tenantId: randomUUID(),
             } as any,

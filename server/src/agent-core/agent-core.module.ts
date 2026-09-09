@@ -13,9 +13,13 @@ import { OperatorControlsService } from './operator-controls.service.js'
 import { CommercialKnowledgeService } from './commercial-knowledge.service.js'
 import { AgentOrchestratorService } from './agent-orchestrator.service.js'
 import { AgentEventWorkerService } from './agent-event-worker.service.js'
+import { WorkflowOperationsService } from './workflow-operations.service.js'
+import { WorkflowStepRunnerService } from './workflow-step-runner.service.js'
 
 @Module({
   providers: [
+    WorkflowStepRunnerService,
+    WorkflowOperationsService,
     AgentOrchestratorService,
     AgentEventWorkerService,
     CommercialKnowledgeService,
@@ -33,6 +37,8 @@ import { AgentEventWorkerService } from './agent-event-worker.service.js'
   ],
 
   exports: [
+    WorkflowStepRunnerService,
+    WorkflowOperationsService,
     AgentOrchestratorService,
     AgentEventWorkerService,
     CommercialKnowledgeService,

@@ -14,6 +14,7 @@ import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { OperatorControlsService } from './operator-controls.service.js'
 import { capabilitySchema } from './understanding-v2.js'
+import { emitStoredEvent } from './agent-event-store.js'
 
 const json = (
   value: unknown,
@@ -27,6 +28,7 @@ const scopeSchema = z.enum([
 ])
 
 const proposeSchema = z.object({
+  ownerReviewId: z.uuid().optional(),
   title: z
     .string()
     .trim()
@@ -130,39 +132,12 @@ export class CommercialKnowledgeService {
       payload: unknown
     },
   ) {
-    const prior =
-      await tx.agentEvent.findUnique({
-        where: {
-          tenantId_sourceKey: {
-            tenantId: this.tenantId,
-            sourceKey: input.sourceKey,
-          },
-        },
-      })
-
-    if (prior) {
-      if (
-        prior.type !== input.type ||
-        prior.jobId !== (input.jobId ?? null)
-      ) {
-        throw new ConflictException(
-          'La clave del evento comercial ya corresponde a otro evento.',
-        )
-      }
-
-      return prior
-    }
-
-    return tx.agentEvent.create({
-      data: {
-        tenantId: this.tenantId,
-        type: input.type,
-        jobId: input.jobId,
-        actorType: 'OWNER',
-        sourceKey: input.sourceKey,
-        payloadJson: json(input.payload),
-      },
-    })
+    const job=input.jobId?await tx.job.findFirstOrThrow({where:{id:input.jobId,tenantId:this.tenantId}}):null
+    const payload=input.payload as Record<string,unknown>
+    const entry=typeof payload.knowledgeId==='string'?await tx.commercialKnowledge.findFirst({where:{id:payload.knowledgeId,tenantId:this.tenantId}}):null
+    const reviewId=(entry?.contentJson as any)?.request?.ownerReviewId
+    return emitStoredEvent(tx,this.tenantId,{...input,actorType:'OWNER',conversationId:job?.conversationId??undefined,
+      payload:{...payload,ownerReviewId:reviewId??null,requirementsRevision:job?.requirementsRevision??null}})
   }
 
   private async owner(
@@ -227,6 +202,10 @@ export class CommercialKnowledgeService {
           sourceId,
         )
 
+        if(input.ownerReviewId){
+          const review=await tx.ownerReview.findFirst({where:{id:input.ownerReviewId,tenantId:this.tenantId}})
+          if(!review || (review.details as {jobId?:string}).jobId!==input.sourceJobId)throw new ConflictException('La revisión no corresponde al trabajo indicado.')
+        }
         if (
           input.sourceJobId &&
           !await tx.job.findFirst({

@@ -102,6 +102,7 @@ export class QuoteWorkflowService {
         type: 'CHECK_REQUIREMENT', title: 'Revisar cambio de requisitos, presupuesto y fecha', dedupeKey: key, details: json({ previousRevision: job.requirementsRevision, revision, evidence: data.evidence }) } })
       const result = { jobId: job.id, requirementsRevision: revision }
       await this.record(tx, job, key, 'REQUIREMENTS_SAVED', data.evidence, data, result, status, actor)
+      await emitStoredEvent(tx,this.tenantId,{type:'JOB_REQUIREMENTS_UPDATED',jobId:job.id,conversationId:job.conversationId??undefined,actorType:actor.role==='OWNER'?'OWNER':actor.role==='CUSTOMER'?'CUSTOMER':'SYSTEM',sourceKey:key,payload:{requirementsRevision:revision,fields:Object.keys(data.values)}})
       return result
     })
   }
@@ -121,12 +122,14 @@ export class QuoteWorkflowService {
       }
 
       const escalate = async (status: 'RULE_NOT_CONFIGURED' | 'MISSING_DATA' | 'CUSTOMER_DETAILS_REQUIRED', missingFields: string[], reason: string): Promise<DraftResult> => {
-        const task = await tx.task.create({ data: { tenantId: this.tenantId, jobId: job.id, conversationId: job.conversationId,
-          type: status === 'RULE_NOT_CONFIGURED' ? 'CHECK_PRODUCT_RULE' : 'CHECK_REQUIREMENT', dedupeKey: key,
-          title: 'Completar información antes de cotizar', details: { status, reason, missingFields, productId: job.productId } } })
+        const dedupeKey=`quote-wait:${job.id}:${job.requirementsRevision}:${status}`
+        const task = await tx.task.upsert({where:{tenantId_dedupeKey:{tenantId:this.tenantId,dedupeKey}},create: { tenantId: this.tenantId, jobId: job.id, conversationId: job.conversationId,
+          type: status === 'RULE_NOT_CONFIGURED' ? 'CHECK_PRODUCT_RULE' : 'CHECK_REQUIREMENT', dedupeKey,
+          title: 'Completar información antes de cotizar', details: { status, reason, missingFields, productId: job.productId } },update:{} })
         await tx.job.update({ where: { id: job.id }, data: { status: 'REQUIERE_REVISION', version: { increment: 1 } } })
         const result = { status, taskId: task.id, missingFields }
         await this.record(tx, job, key, 'QUOTE_REVIEW_REQUIRED', data.evidence, data, result, 'REQUIERE_REVISION', actor)
+        if(job.conversationId)await ensureQuoteWait(tx,this.tenantId,{conversationId:job.conversationId,jobId:job.id,taskId:task.id,revision:job.requirementsRevision,status,missingFields})
         return result
       }
 
@@ -239,7 +242,10 @@ export class QuoteWorkflowService {
       const updated = await tx.quote.update({ where: { id: quote.id }, data: { status: data.decision, approvedAt: data.decision === 'APPROVED' ? now : null } })
       await tx.task.updateMany({ where: { tenantId: this.tenantId, dedupeKey: approval.dedupeKey, type: 'APPROVE_QUOTE', status: { in: ['OPEN', 'IN_PROGRESS'] } }, data: { status: 'DONE', completedAt: now } })
       await this.record(tx, job, `quote-review:${approval.id}`, `QUOTE_${data.decision}`, data.note, data, { quoteId: quote.id, approvalId: approval.id }, job.status, actor)
+      await emitStoredEvent(tx,this.tenantId,{type:'APPROVAL_RESOLVED',jobId:job.id,conversationId:job.conversationId??undefined,actorType:'OWNER',sourceKey:`approval-resolved:${approval.id}`,payload:{approvalId:approval.id,decision:data.decision,requirementsRevision:job.requirementsRevision,jobVersion:job.version}})
       return updated
     })
   }
 }
+import { emitStoredEvent } from './agent-event-store.js'
+import { ensureQuoteWait } from './commercial-wait-workflow.js'
