@@ -1,10 +1,32 @@
-import { Injectable } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnModuleDestroy,
+} from '@nestjs/common'
 import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { AgentOrchestratorService } from './agent-orchestrator.service.js'
 
+const WORKER_INTERVAL_MS = 2_000
+
 @Injectable()
-export class AgentEventWorkerService {
+export class AgentEventWorkerService
+  implements
+    OnApplicationBootstrap,
+    OnModuleDestroy
+{
+  private readonly logger =
+    new Logger(
+      AgentEventWorkerService.name,
+    )
+
+  private timer:
+    | ReturnType<typeof setInterval>
+    | undefined
+
+  private running = false
+
   constructor(
     private readonly db: PrismaService,
     private readonly tenant: LocalTenantService,
@@ -15,34 +37,130 @@ export class AgentEventWorkerService {
     return this.tenant.tenantId
   }
 
+  onApplicationBootstrap() {
+    /*
+     * Ejecutamos un primer ciclo después
+     * de que Nest terminó de iniciar.
+     *
+     * Esto permite recuperar trabajo
+     * pendiente después de reinicios.
+     */
+    void this.runSafely()
+
+    this.timer =
+      setInterval(
+        () => {
+          void this.runSafely()
+        },
+        WORKER_INTERVAL_MS,
+      )
+
+    /*
+     * El timer no debe impedir que Node
+     * termine el proceso normalmente.
+     */
+    this.timer.unref?.()
+  }
+
+  onModuleDestroy() {
+    if (this.timer) {
+      clearInterval(
+        this.timer,
+      )
+
+      this.timer =
+        undefined
+    }
+  }
+
   /**
-   * Procesa eventos persistidos que todavía no fueron consumidos.
+   * Evita ejecutar dos ciclos simultáneos
+   * dentro de la misma instancia.
    *
-   * Importante:
-   * - No borra eventos.
-   * - No inventa acciones.
-   * - No confirma pagos.
-   * - No inicia producción.
-   * - Solo intenta satisfacer condiciones de resume ya persistidas.
+   * En el futuro también tendremos
+   * protección explícita entre réplicas.
    */
-  async processPendingEvents(limit = 100) {
-    const safeLimit = Math.max(
-      1,
-      Math.min(limit, 100),
-    )
+  private async runSafely() {
+    if (this.running) {
+      return
+    }
+
+    this.running = true
+
+    try {
+      const result =
+        await this.processOnce()
+
+      if (
+        result.events.resumed > 0
+      ) {
+        this.logger.debug(
+          `Workflows reanudados: ${result.events.resumed}`,
+        )
+      }
+    } catch (error) {
+      /*
+       * Un error en un ciclo no debe
+       * matar el servidor.
+       *
+       * Como los eventos permanecen
+       * persistidos, el siguiente ciclo
+       * podrá volver a intentarlo.
+       */
+      this.logger.error(
+        'Error procesando eventos del agente.',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      )
+    } finally {
+      this.running = false
+    }
+  }
+
+  /**
+   * Procesa eventos persistidos que
+   * todavía no fueron consumidos.
+   *
+   * No:
+   * - borra eventos;
+   * - inventa acciones;
+   * - confirma pagos;
+   * - inicia producción;
+   * - modifica reglas comerciales.
+   *
+   * Solo intenta satisfacer condiciones
+   * de reanudación ya persistidas.
+   */
+  async processPendingEvents(
+    limit = 100,
+  ) {
+    const safeLimit =
+      Math.max(
+        1,
+        Math.min(
+          limit,
+          100,
+        ),
+      )
 
     const events =
       await this.db.agentEvent.findMany({
         where: {
-          tenantId: this.tenantId,
-          consumedAt: null,
+          tenantId:
+            this.tenantId,
+
+          consumedAt:
+            null,
         },
 
         orderBy: {
-          createdAt: 'asc',
+          createdAt:
+            'asc',
         },
 
-        take: safeLimit,
+        take:
+          safeLimit,
       })
 
     const results: Array<{
@@ -53,17 +171,25 @@ export class AgentEventWorkerService {
       error?: string
     }> = []
 
-    for (const event of events) {
+    for (
+      const event of events
+    ) {
       try {
         const result =
           await this.orchestrator.resumeFromEvent(
             event.id,
           )
 
-        if (result.resumed) {
+        if (
+          result.resumed
+        ) {
           results.push({
-            eventId: event.id,
-            resumed: true,
+            eventId:
+              event.id,
+
+            resumed:
+              true,
+
             workflowId:
               result.workflowId,
           })
@@ -72,15 +198,23 @@ export class AgentEventWorkerService {
         }
 
         results.push({
-          eventId: event.id,
-          resumed: false,
+          eventId:
+            event.id,
+
+          resumed:
+            false,
+
           reason:
             result.reason,
         })
       } catch (error) {
         results.push({
-          eventId: event.id,
-          resumed: false,
+          eventId:
+            event.id,
+
+          resumed:
+            false,
+
           error:
             error instanceof Error
               ? error.message
@@ -90,21 +224,25 @@ export class AgentEventWorkerService {
     }
 
     return {
-      scanned: events.length,
+      scanned:
+        events.length,
+
       resumed:
         results.filter(
           (item) =>
             item.resumed,
         ).length,
+
       results,
     }
   }
 
   /**
-   * Convierte workflows WAITING_TIME vencidos
-   * en eventos TIME_REACHED persistidos.
+   * Convierte workflows WAITING_TIME
+   * vencidos en eventos TIME_REACHED.
    *
-   * El sourceKey determinístico hace la operación idempotente.
+   * El sourceKey determinístico evita
+   * crear múltiples eventos equivalentes.
    */
   async createDueTimerEvents(
     now = new Date(),
@@ -116,8 +254,12 @@ export class AgentEventWorkerService {
 
     const events = []
 
-    for (const workflow of workflows) {
-      if (!workflow.wakeAt) {
+    for (
+      const workflow of workflows
+    ) {
+      if (
+        !workflow.wakeAt
+      ) {
         continue
       }
 
@@ -155,7 +297,9 @@ export class AgentEventWorkerService {
           },
         })
 
-      events.push(event)
+      events.push(
+        event,
+      )
     }
 
     return {
@@ -170,14 +314,14 @@ export class AgentEventWorkerService {
   }
 
   /**
-   * Un ciclo completo del worker:
+   * Un ciclo completo:
    *
-   * 1. materializa timers vencidos;
-   * 2. intenta reanudar eventos pendientes.
+   * 1. crea eventos para timers vencidos;
+   * 2. procesa eventos pendientes.
    *
-   * Este método luego podrá ejecutarse
-   * periódicamente y también después
-   * de un reinicio del servidor.
+   * Todo está respaldado por PostgreSQL,
+   * por lo que un reinicio no pierde
+   * el trabajo pendiente.
    */
   async processOnce(
     now = new Date(),

@@ -442,4 +442,258 @@ describe('AgentEventWorkerService integration', () => {
       timerEvents.length,
     ).toBe(0)
   })
+
+  it('reanuda automáticamente un evento pendiente al iniciar el worker', async () => {
+    if (!db) return
+
+    const workflow =
+      await orchestrator.createWorkflow({
+        objective:
+          'Recuperar evento pendiente al iniciar',
+
+        requestKey:
+          `worker-bootstrap-${Date.now()}`,
+
+        steps: [
+          {
+            stepKey:
+              'wait-owner',
+
+            type:
+              'ASK_OWNER',
+          },
+        ],
+      })
+
+    await orchestrator.startWorkflow(
+      workflow.id,
+    )
+
+    await orchestrator.wait(
+      workflow.id,
+      {
+        state:
+          'WAITING_OWNER',
+
+        actorType:
+          'OWNER',
+
+        reason:
+          'Esperando conocimiento',
+
+        resumeCondition: {
+          eventTypes: [
+            'COMMERCIAL_KNOWLEDGE_VERIFIED',
+          ],
+
+          actorType:
+            'OWNER',
+        },
+      },
+    )
+
+    const event =
+      await orchestrator.emitEvent({
+        workflowId:
+          workflow.id,
+
+        type:
+          'COMMERCIAL_KNOWLEDGE_VERIFIED',
+
+        actorType:
+          'OWNER',
+
+        sourceKey:
+          `worker-bootstrap-event-${Date.now()}`,
+
+        payload: {
+          knowledgeId:
+            'bootstrap-test',
+        },
+      })
+
+    expect(
+      event.consumedAt,
+    ).toBeNull()
+
+    const bootstrapConfig =
+      new ConfigService({
+        DATABASE_URL:
+          process.env.TEST_DATABASE_URL ??
+          process.env.DATABASE_URL,
+
+        DEFAULT_TENANT_ID:
+          TENANT_ID,
+      })
+
+    const bootstrapTenant =
+      new LocalTenantService(
+        bootstrapConfig,
+      )
+
+    const bootstrapWorker =
+      new AgentEventWorkerService(
+        db,
+        bootstrapTenant,
+        orchestrator,
+      )
+
+    bootstrapWorker.onApplicationBootstrap()
+
+    try {
+      const deadline =
+        Date.now() + 5_000
+
+      let current =
+        await orchestrator.getWorkflow(
+          workflow.id,
+        )
+
+      while (
+        current.state !== 'RUNNING' &&
+        Date.now() < deadline
+      ) {
+        await new Promise(
+          (resolve) =>
+            setTimeout(
+              resolve,
+              100,
+            ),
+        )
+
+        current =
+          await orchestrator.getWorkflow(
+            workflow.id,
+          )
+      }
+
+      expect(
+        current.state,
+      ).toBe('RUNNING')
+
+      const storedEvent =
+        await db.agentEvent.findUniqueOrThrow({
+          where: {
+            id: event.id,
+          },
+        })
+
+      expect(
+        storedEvent.consumedAt,
+      ).not.toBeNull()
+    } finally {
+      bootstrapWorker.onModuleDestroy()
+    }
+  })
+
+  it('dos ciclos automáticos no duplican el mismo resume', async () => {
+    if (!db) return
+
+    const workflow =
+      await orchestrator.createWorkflow({
+        objective:
+          'No duplicar resume automático',
+
+        requestKey:
+          `worker-auto-idempotent-${Date.now()}`,
+
+        steps: [
+          {
+            stepKey:
+              'wait-owner',
+
+            type:
+              'ASK_OWNER',
+          },
+        ],
+      })
+
+    await orchestrator.startWorkflow(
+      workflow.id,
+    )
+
+    await orchestrator.wait(
+      workflow.id,
+      {
+        state:
+          'WAITING_OWNER',
+
+        actorType:
+          'OWNER',
+
+        reason:
+          'Esperando OWNER',
+
+        resumeCondition: {
+          eventTypes: [
+            'OWNER_MESSAGE_RECEIVED',
+          ],
+
+          actorType:
+            'OWNER',
+        },
+      },
+    )
+
+    const event =
+      await orchestrator.emitEvent({
+        workflowId:
+          workflow.id,
+
+        type:
+          'OWNER_MESSAGE_RECEIVED',
+
+        actorType:
+          'OWNER',
+
+        sourceKey:
+          `worker-auto-idempotent-event-${Date.now()}`,
+
+        payload: {},
+      })
+
+    await worker.processOnce()
+    await worker.processOnce()
+
+    const current =
+      await orchestrator.getWorkflow(
+        workflow.id,
+      )
+
+    expect(
+      current.state,
+    ).toBe('RUNNING')
+
+    const storedEvent =
+      await db.agentEvent.findUniqueOrThrow({
+        where: {
+          id: event.id,
+        },
+      })
+
+    expect(
+      storedEvent.consumedAt,
+    ).not.toBeNull()
+
+    const resumeAudits =
+      await db.auditLog.findMany({
+        where: {
+          tenantId:
+            TENANT_ID,
+
+          entityType:
+            'AgentWorkflow',
+
+          entityId:
+            workflow.id,
+
+          action:
+            'WORKFLOW_RESUMED',
+        },
+      })
+
+    expect(
+      resumeAudits.length,
+    ).toBe(1)
+  })
 })
