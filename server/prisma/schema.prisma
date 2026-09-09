@@ -180,44 +180,195 @@ enum CommercialKnowledgeStatus {
   SUPERSEDED
 }
 
+/* =========================================================
+   AGENT ORCHESTRATOR — BLOQUE 3
+   ========================================================= */
+
+enum AgentWorkflowState {
+  READY
+  RUNNING
+  WAITING_CUSTOMER
+  WAITING_OWNER
+  WAITING_EMPLOYEE
+  WAITING_EXTERNAL
+  WAITING_APPROVAL
+  WAITING_TIME
+  COMPLETED
+  CANCELLED
+  FAILED
+  NEEDS_HUMAN_REVIEW
+}
+
+enum AgentWorkflowStepStatus {
+  PENDING
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum AgentWorkflowStepType {
+  UNDERSTAND
+  CHECK_CONTEXT
+  CHECK_POLICY
+  EXECUTE_TOOL
+  CREATE_TASK
+  CREATE_OWNER_REVIEW
+  ASK_CUSTOMER
+  ASK_OWNER
+  WAIT
+  RESUME
+  VERIFY_RESULT
+  COMPLETE
+  ESCALATE
+}
+
+enum AgentEventType {
+  CUSTOMER_MESSAGE_RECEIVED
+  CUSTOMER_FILE_RECEIVED
+  OWNER_MESSAGE_RECEIVED
+  OWNER_REVIEW_RESOLVED
+  APPROVAL_RESOLVED
+  COMMERCIAL_KNOWLEDGE_CREATED
+  COMMERCIAL_KNOWLEDGE_VERIFIED
+  JOB_UPDATED
+  JOB_REQUIREMENTS_UPDATED
+  QUOTE_CREATED
+  QUOTE_APPROVED
+  PAYMENT_REPORTED
+  PAYMENT_CONFIRMED
+  DESIGN_FEEDBACK_RECEIVED
+  SUPPLIER_MESSAGE_RECEIVED
+  MANUAL_RESUME
+  TIME_REACHED
+}
+
 model CommercialKnowledge {
-  id String @id @default(uuid()) @db.Uuid
-  tenantId String @db.Uuid
-  title String
-  category String
-  componentKey String
-  scope CommercialKnowledgeScope?
-  status CommercialKnowledgeStatus @default(DRAFT)
-  sourceType String
-  sourceJobId String? @db.Uuid
-  sourceQuoteId String? @db.Uuid
-  createdByActorId String? @db.Uuid
-  verifiedByActorId String? @db.Uuid
-  verifiedAt DateTime?
-  contentJson Json
+  id                String                     @id @default(uuid()) @db.Uuid
+  tenantId          String                     @db.Uuid
+  title             String
+  category          String
+  componentKey      String
+  scope             CommercialKnowledgeScope?
+  status            CommercialKnowledgeStatus  @default(DRAFT)
+  sourceType        String
+  sourceJobId       String?                    @db.Uuid
+  sourceQuoteId     String?                    @db.Uuid
+  createdByActorId  String?                    @db.Uuid
+  verifiedByActorId String?                    @db.Uuid
+  verifiedAt        DateTime?
+  contentJson       Json
   applicabilityJson Json
-  riskLevel String @default("REVIEW_REQUIRED")
-  requestKey String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tenant Tenant @relation(fields:[tenantId], references:[id],onDelete:Restrict)
-  @@unique([tenantId,id])
-  @@unique([tenantId,requestKey])
-  @@index([tenantId,componentKey,status,scope])
+  riskLevel         String                     @default("REVIEW_REQUIRED")
+  requestKey        String
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  tenant            Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, requestKey])
+  @@index([tenantId, componentKey, status, scope])
 }
 
 model CommercialRuleSuggestion {
-  id String @id @default(uuid()) @db.Uuid
-  tenantId String @db.Uuid
-  componentKey String
-  evidenceJson Json
-  status ApprovalStatus @default(PENDING)
-  reviewedByActorId String? @db.Uuid
-  reviewedAt DateTime?
-  dedupeKey String
-  createdAt DateTime @default(now())
-  tenant Tenant @relation(fields:[tenantId], references:[id],onDelete:Restrict)
-  @@unique([tenantId,dedupeKey])
+  id                String         @id @default(uuid()) @db.Uuid
+  tenantId          String         @db.Uuid
+  componentKey      String
+  evidenceJson      Json
+  status            ApprovalStatus @default(PENDING)
+  reviewedByActorId String?        @db.Uuid
+  reviewedAt        DateTime?
+  dedupeKey         String
+  createdAt         DateTime       @default(now())
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, dedupeKey])
+}
+
+model AgentWorkflow {
+  id                  String             @id @default(uuid()) @db.Uuid
+  tenantId            String             @db.Uuid
+  conversationId      String?            @db.Uuid
+  jobId               String?            @db.Uuid
+  taskId              String?            @db.Uuid
+
+  objective           String
+  state               AgentWorkflowState @default(READY)
+  currentStep         Int                @default(0)
+
+  planJson            Json               @default("{}")
+  contextJson         Json               @default("{}")
+
+  waitingForActorType ActorType?
+  waitingReason       String?
+  resumeConditionJson Json?
+  wakeAt              DateTime?
+
+  requestKey          String
+  correlationKey      String?
+  version             Int                @default(1)
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  completedAt         DateTime?
+
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  conversation        Conversation?       @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  job                 Job?                @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Restrict)
+  task                Task?               @relation(fields: [tenantId, taskId], references: [tenantId, id], onDelete: Restrict)
+
+  steps               AgentWorkflowStep[]
+  events              AgentEvent[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, requestKey])
+  @@index([tenantId, state, updatedAt])
+  @@index([tenantId, wakeAt])
+  @@index([tenantId, correlationKey])
+}
+
+model AgentWorkflowStep {
+  id          String                  @id @default(uuid()) @db.Uuid
+  tenantId    String                  @db.Uuid
+  workflowId  String                  @db.Uuid
+  stepKey     String
+  position    Int
+  type        AgentWorkflowStepType
+  status      AgentWorkflowStepStatus @default(PENDING)
+  inputJson   Json                    @default("{}")
+  resultJson  Json?
+  attempt     Int                     @default(0)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  workflow AgentWorkflow @relation(fields: [tenantId, workflowId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, workflowId, stepKey])
+  @@index([tenantId, workflowId, position])
+}
+
+model AgentEvent {
+  id             String         @id @default(uuid()) @db.Uuid
+  tenantId       String         @db.Uuid
+  workflowId     String?        @db.Uuid
+  type           AgentEventType
+  conversationId String?        @db.Uuid
+  jobId          String?        @db.Uuid
+  actorType      ActorType?
+  sourceKey      String
+  payloadJson    Json           @default("{}")
+  consumedAt     DateTime?
+  createdAt      DateTime       @default(now())
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+workflow AgentWorkflow? @relation(fields: [tenantId, workflowId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, sourceKey])
+  @@index([tenantId, type, consumedAt, createdAt])
+  @@index([tenantId, workflowId])
 }
 
 enum QuoteStatus {
@@ -293,7 +444,10 @@ enum ConversationMessageStatus {
 
 model Tenant {
   commercialKnowledge CommercialKnowledge[]
-  ruleSuggestions CommercialRuleSuggestion[]
+  ruleSuggestions     CommercialRuleSuggestion[]
+  agentWorkflows      AgentWorkflow[]
+  agentEvents         AgentEvent[]
+
   id                    String                 @id @default(uuid()) @db.Uuid
   name                  String
   slug                  String                 @unique
@@ -385,8 +539,9 @@ model Product {
 
 model Conversation {
   pendingSynthesis Json?
-  waitingState String?
-  waitingUntil DateTime?
+  waitingState     String?
+  waitingUntil     DateTime?
+
   id                   String                @id @default(uuid()) @db.Uuid
   tenantId             String                @db.Uuid
   channel              ConversationChannel
@@ -407,14 +562,16 @@ model Conversation {
   context              Json                  @default("{}")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
-  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  messages             ConversationMessage[]
-  jobs                 Job[]
-  tasks                Task[]
-  summaries            ConversationSummary[]
-  agentTurns           AgentTurn[]
-  ownerReviews         OwnerReview[]
-  tagAssignments       TagAssignment[]
+
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages       ConversationMessage[]
+  jobs           Job[]
+  tasks          Task[]
+  summaries      ConversationSummary[]
+  agentTurns     AgentTurn[]
+  ownerReviews   OwnerReview[]
+  tagAssignments TagAssignment[]
+  agentWorkflows AgentWorkflow[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, channel, externalId])
@@ -716,15 +873,17 @@ model Job {
   version              Int                @default(0)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
-  tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  contactProfile       ContactProfile     @relation(fields: [tenantId, contactProfileId], references: [tenantId, id], onDelete: Restrict)
-  conversation         Conversation?      @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
-  quote                Quote?             @relation(fields: [tenantId, quoteId], references: [tenantId, id], onDelete: Restrict)
-  product              Product?           @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
-  tasks                Task[]
-  approvals            Approval[]
-  events               JobEvent[]
-  documents            BusinessDocument[]
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contactProfile ContactProfile     @relation(fields: [tenantId, contactProfileId], references: [tenantId, id], onDelete: Restrict)
+  conversation   Conversation?      @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  quote          Quote?             @relation(fields: [tenantId, quoteId], references: [tenantId, id], onDelete: Restrict)
+  product        Product?           @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+  tasks          Task[]
+  approvals      Approval[]
+  events         JobEvent[]
+  documents      BusinessDocument[]
+  agentWorkflows AgentWorkflow[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, originKey])
@@ -765,10 +924,13 @@ model Task {
   completedAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
   tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   job            Job?          @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Restrict)
   conversation   Conversation? @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  agentWorkflows AgentWorkflow[]
 
+  @@unique([tenantId, id])
   @@unique([tenantId, dedupeKey])
   @@index([tenantId, status, dueAt])
 }
@@ -841,26 +1003,28 @@ enum AgentOutboxStatus {
 
 model AgentTurn {
   understandingV2 Json?
-  synthesis Json?
-  policyDecision Json?
-  id               String             @id @default(uuid()) @db.Uuid
-  tenantId         String             @db.Uuid
-  conversationId   String             @db.Uuid
-  status           AgentTurnStatus    @default(IN_PROGRESS)
+  synthesis       Json?
+  policyDecision  Json?
+
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @db.Uuid
+  conversationId   String          @db.Uuid
+  status           AgentTurnStatus @default(IN_PROGRESS)
   sourceMessageIds Json
-  leaseOwner       String             @db.Uuid
+  leaseOwner       String          @db.Uuid
   leaseUntil       DateTime
-  attempts         Int                @default(1)
+  attempts         Int             @default(1)
   plan             Json?
   result           Json?
   failureCode      String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  conversation     Conversation       @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
-  sourceMessages   AgentTurnMessage[]
-  toolCalls        AgentToolCall[]
-  outbox           AgentOutbox[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  conversation   Conversation       @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  sourceMessages AgentTurnMessage[]
+  toolCalls      AgentToolCall[]
+  outbox         AgentOutbox[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, conversationId, id])
@@ -874,8 +1038,9 @@ model AgentTurnMessage {
   conversationId String              @db.Uuid
   turnId         String              @db.Uuid
   messageId      String              @db.Uuid
-  turn           AgentTurn           @relation(fields: [tenantId, conversationId, turnId], references: [tenantId, conversationId, id], onDelete: Restrict)
-  message        ConversationMessage @relation(fields: [conversationId, messageId], references: [conversationId, id], onDelete: Restrict)
+
+  turn    AgentTurn           @relation(fields: [tenantId, conversationId, turnId], references: [tenantId, conversationId, id], onDelete: Restrict)
+message ConversationMessage @relation(fields: [conversationId, messageId], references: [conversationId, id], onDelete: Restrict)
 
   @@unique([tenantId, messageId])
   @@index([turnId])
@@ -909,7 +1074,8 @@ model AgentOutbox {
   sentAt            DateTime?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
-  turn              AgentTurn               @relation(fields: [tenantId, conversationId, turnId], references: [tenantId, conversationId, id], onDelete: Restrict)
+
+  turn AgentTurn @relation(fields: [tenantId, conversationId, turnId], references: [tenantId, conversationId, id], onDelete: Restrict)
 
   @@unique([tenantId, turnId, sequence])
   @@index([tenantId, status, createdAt])
