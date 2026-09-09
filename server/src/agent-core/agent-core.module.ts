@@ -12,10 +12,12 @@ import { OpenAIInterpreterTransport } from './openai-interpreter.transport.js'
 import { OperatorControlsService } from './operator-controls.service.js'
 import { CommercialKnowledgeService } from './commercial-knowledge.service.js'
 import { AgentOrchestratorService } from './agent-orchestrator.service.js'
+import { AgentEventWorkerService } from './agent-event-worker.service.js'
 
 @Module({
   providers: [
     AgentOrchestratorService,
+    AgentEventWorkerService,
     CommercialKnowledgeService,
     OperatorControlsService,
     CommercialService,
@@ -29,8 +31,10 @@ import { AgentOrchestratorService } from './agent-orchestrator.service.js'
     AgentInterpreterService,
     OpenAIInterpreterTransport,
   ],
+
   exports: [
     AgentOrchestratorService,
+    AgentEventWorkerService,
     CommercialKnowledgeService,
     OperatorControlsService,
     CommercialService,
