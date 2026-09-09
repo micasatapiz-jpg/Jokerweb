@@ -7,9 +7,21 @@ import {
 import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
 import { AgentOrchestratorService } from './agent-orchestrator.service.js'
+import { WorkflowStepRunnerService } from './workflow-step-runner.service.js'
 import { deferStoredEvent } from './agent-event-store.js'
 
-const WORKER_INTERVAL_MS = 2_000
+const WORKER_INTERVAL_MS =
+  2_000
+
+/*
+ * Evita que un solo workflow monopolice
+ * completamente un ciclo del worker.
+ *
+ * Si hay más pasos determinísticos,
+ * continuarán en el siguiente ciclo.
+ */
+const MAX_STEPS_PER_WORKFLOW_CYCLE =
+  20
 
 @Injectable()
 export class AgentEventWorkerService
@@ -26,12 +38,18 @@ export class AgentEventWorkerService
     | ReturnType<typeof setInterval>
     | undefined
 
-  private running = false
+  private running =
+    false
 
   constructor(
-    private readonly db: PrismaService,
-    private readonly tenant: LocalTenantService,
-    private readonly orchestrator: AgentOrchestratorService,
+    private readonly db:
+      PrismaService,
+
+    private readonly tenant:
+      LocalTenantService,
+
+    private readonly orchestrator:
+      AgentOrchestratorService,
   ) {}
 
   private get tenantId() {
@@ -40,11 +58,14 @@ export class AgentEventWorkerService
 
   onApplicationBootstrap() {
     /*
-     * Ejecutamos un primer ciclo después
-     * de que Nest terminó de iniciar.
+     * Primer ciclo después de iniciar Nest.
      *
-     * Esto permite recuperar trabajo
-     * pendiente después de reinicios.
+     * Esto recupera:
+     *
+     * - timers vencidos;
+     * - eventos persistidos sin consumir;
+     * - workflows que quedaron RUNNING
+     *   antes de un reinicio/crash.
      */
     void this.runSafely()
 
@@ -57,14 +78,16 @@ export class AgentEventWorkerService
       )
 
     /*
-     * El timer no debe impedir que Node
-     * termine el proceso normalmente.
+     * El timer no debe impedir que
+     * Node termine normalmente.
      */
     this.timer.unref?.()
   }
 
   onModuleDestroy() {
-    if (this.timer) {
+    if (
+      this.timer
+    ) {
       clearInterval(
         this.timer,
       )
@@ -78,60 +101,70 @@ export class AgentEventWorkerService
    * Evita ejecutar dos ciclos simultáneos
    * dentro de la misma instancia.
    *
-   * En el futuro también tendremos
-   * protección explícita entre réplicas.
+   * La protección entre réplicas vive
+   * además en PostgreSQL mediante locks,
+   * versiones e idempotencia.
    */
   private async runSafely() {
-    if (this.running) {
+    if (
+      this.running
+    ) {
       return
     }
 
-    this.running = true
+    this.running =
+      true
 
     try {
       const result =
         await this.processOnce()
 
       if (
-        result.events.resumed > 0
+        result.events.resumed >
+          0 ||
+        result.workflows.stepsCompleted >
+          0 ||
+        result.workflows.completed >
+          0
       ) {
         this.logger.debug(
-          `Workflows reanudados: ${result.events.resumed}`,
+          [
+            `Eventos reanudados: ${result.events.resumed}`,
+            `steps ejecutados: ${result.workflows.stepsCompleted}`,
+            `workflows completados: ${result.workflows.completed}`,
+          ].join(', '),
         )
       }
     } catch (error) {
       /*
-       * Un error en un ciclo no debe
-       * matar el servidor.
+       * Un ciclo fallido no debe matar
+       * el servidor.
        *
-       * Como los eventos permanecen
-       * persistidos, el siguiente ciclo
-       * podrá volver a intentarlo.
+       * El estado durable permanece
+       * en PostgreSQL para el siguiente
+       * intento.
        */
       this.logger.error(
-        'Error procesando eventos del agente.',
+        'Error procesando trabajo durable del agente.',
         error instanceof Error
           ? error.stack
           : String(error),
       )
     } finally {
-      this.running = false
+      this.running =
+        false
     }
   }
 
   /**
-   * Procesa eventos persistidos que
+   * Procesa AgentEvent persistidos que
    * todavía no fueron consumidos.
    *
-   * No:
-   * - borra eventos;
-   * - inventa acciones;
-   * - confirma pagos;
-   * - inicia producción;
-   * - modifica reglas comerciales.
+   * Este método solo satisface condiciones
+   * WAIT/RESUME.
    *
-   * Solo intenta satisfacer condiciones
-   * de reanudación ya persistidas.
+   * La continuación de steps RUNNING ocurre
+   * posteriormente en processRunnableWorkflows().
    */
   async processPendingEvents(
     limit = 100,
@@ -154,8 +187,22 @@ export class AgentEventWorkerService
 
           consumedAt:
             null,
-          processingFailedAt: null,
-          OR: [{nextAttemptAt:null},{nextAttemptAt:{lte:now}}],
+
+          processingFailedAt:
+            null,
+
+          OR: [
+            {
+              nextAttemptAt:
+                null,
+            },
+            {
+              nextAttemptAt: {
+                lte:
+                  now,
+              },
+            },
+          ],
         },
 
         orderBy: {
@@ -167,16 +214,18 @@ export class AgentEventWorkerService
           safeLimit,
       })
 
-    const results: Array<{
-      eventId: string
-      resumed: boolean
-      workflowId?: string
-      reason?: string
-      error?: string
-    }> = []
+    const results:
+      Array<{
+        eventId: string
+        resumed: boolean
+        workflowId?: string
+        reason?: string
+        error?: string
+      }> = []
 
     for (
-      const event of events
+      const event of
+      events
     ) {
       try {
         const result =
@@ -213,11 +262,51 @@ export class AgentEventWorkerService
             result.reason,
         })
       } catch (error) {
-        await this.db.$transaction(async tx => {
-          await tx.$queryRaw`SELECT id FROM "AgentEvent" WHERE id=${event.id}::uuid AND "tenantId"=${this.tenantId}::uuid FOR UPDATE`
-          const current=await tx.agentEvent.findFirstOrThrow({where:{id:event.id,tenantId:this.tenantId}})
-          if(!current.nextAttemptAt || current.nextAttemptAt<=now)await deferStoredEvent(tx,this.tenantId,event.id,'PROCESSING_ERROR',now)
-        })
+        /*
+         * Persistimos el fallo del evento.
+         *
+         * No se elimina.
+         * No se considera consumido.
+         */
+        await this.db.$transaction(
+          async (
+            tx,
+          ) => {
+            await tx.$queryRaw`
+              SELECT id
+              FROM "AgentEvent"
+              WHERE id = ${event.id}::uuid
+                AND "tenantId" = ${this.tenantId}::uuid
+              FOR UPDATE
+            `
+
+            const current =
+              await tx.agentEvent.findFirstOrThrow({
+                where: {
+                  id:
+                    event.id,
+
+                  tenantId:
+                    this.tenantId,
+                },
+              })
+
+            if (
+              !current.nextAttemptAt ||
+              current.nextAttemptAt <=
+                now
+            ) {
+              await deferStoredEvent(
+                tx,
+                this.tenantId,
+                event.id,
+                'PROCESSING_ERROR',
+                now,
+              )
+            }
+          },
+        )
+
         results.push({
           eventId:
             event.id,
@@ -239,7 +328,9 @@ export class AgentEventWorkerService
 
       resumed:
         results.filter(
-          (item) =>
+          (
+            item,
+          ) =>
             item.resumed,
         ).length,
 
@@ -248,11 +339,431 @@ export class AgentEventWorkerService
   }
 
   /**
-   * Convierte workflows WAITING_TIME
-   * vencidos en eventos TIME_REACHED.
+   * Continúa workflows persistidos cuyo
+   * estado es RUNNING.
    *
-   * El sourceKey determinístico evita
-   * crear múltiples eventos equivalentes.
+   * Este método es deliberadamente
+   * determinístico.
+   *
+   * No:
+   *
+   * - llama OpenAI;
+   * - envía WhatsApp;
+   * - confirma pagos;
+   * - publica precios;
+   * - inicia producción;
+   * - inventa reglas.
+   *
+   * WorkflowStepRunnerService decide qué
+   * tipos de step son seguros.
+   */
+  async processRunnableWorkflows(
+    limit = 100,
+  ) {
+    const safeLimit =
+      Math.max(
+        1,
+        Math.min(
+          limit,
+          100,
+        ),
+      )
+
+    const workflows =
+      await this.db.agentWorkflow.findMany({
+        where: {
+          tenantId:
+            this.tenantId,
+
+          state:
+            'RUNNING',
+        },
+
+        orderBy: [
+          {
+            updatedAt:
+              'asc',
+          },
+          {
+            id:
+              'asc',
+          },
+        ],
+
+        take:
+          safeLimit,
+
+        select: {
+          id:
+            true,
+        },
+      })
+
+    const runner =
+      new WorkflowStepRunnerService(
+        this.db,
+        this.tenant,
+      )
+
+    const results:
+      Array<{
+        workflowId: string
+        stepsCompleted: number
+        completed: boolean
+        reason?: string
+      }> = []
+
+    let totalStepsCompleted =
+      0
+
+    let totalCompleted =
+      0
+
+    for (
+      const candidate of
+      workflows
+    ) {
+      let stepsCompleted =
+        0
+
+      let completed =
+        false
+
+      let reason:
+        string |
+        undefined
+
+      /*
+       * Podemos ejecutar varios steps
+       * determinísticos seguidos.
+       *
+       * Hay un límite para evitar loops
+       * accidentales o monopolizar el worker.
+       */
+      for (
+        let cycleStep = 0;
+        cycleStep <
+        MAX_STEPS_PER_WORKFLOW_CYCLE;
+        cycleStep +=
+          1
+      ) {
+        const workflow =
+          await this.db.agentWorkflow.findFirst({
+            where: {
+              id:
+                candidate.id,
+
+              tenantId:
+                this.tenantId,
+            },
+
+            include: {
+              steps: {
+                orderBy: {
+                  position:
+                    'asc',
+                },
+              },
+            },
+          })
+
+        /*
+         * Otra operación pudo eliminarlo
+         * o cambiarlo antes de este punto.
+         */
+        if (
+          !workflow
+        ) {
+          reason =
+            'WORKFLOW_NOT_FOUND'
+
+          break
+        }
+
+        /*
+         * Otra réplica pudo haberlo terminado,
+         * puesto en espera o enviado a revisión.
+         */
+        if (
+          workflow.state !==
+          'RUNNING'
+        ) {
+          reason =
+            `WORKFLOW_STATE_${workflow.state}`
+
+          break
+        }
+
+        const currentPosition =
+          workflow.currentStep
+
+        const step =
+          workflow.steps.find(
+            (
+              item,
+            ) =>
+              item.position ===
+              currentPosition,
+          )
+
+        /*
+         * No quedan steps.
+         *
+         * Un workflow RUNNING sin un siguiente
+         * step pendiente significa que su plan
+         * terminó correctamente.
+         */
+        if (
+          !step
+        ) {
+          await this.orchestrator.transition(
+            workflow.id,
+            'COMPLETED',
+          )
+
+          completed =
+            true
+
+          totalCompleted +=
+            1
+
+          reason =
+            'WORKFLOW_COMPLETED'
+
+          break
+        }
+
+        const result =
+          await runner.run(
+            workflow.id,
+            step.stepKey,
+          )
+
+        if (
+          result.status ===
+          'COMPLETED'
+        ) {
+          stepsCompleted +=
+            1
+
+          totalStepsCompleted +=
+            1
+
+          continue
+        }
+
+        /*
+         * REPLAY puede ocurrir si otra réplica
+         * terminó el mismo step mientras esta
+         * instancia estaba esperando el lock.
+         *
+         * Volvemos a leer el workflow antes
+         * de asumir inconsistencia.
+         */
+        if (
+          result.status ===
+          'REPLAY'
+        ) {
+          const fresh =
+            await this.db.agentWorkflow.findFirst({
+              where: {
+                id:
+                  workflow.id,
+
+                tenantId:
+                  this.tenantId,
+              },
+
+              select: {
+                state:
+                  true,
+
+                currentStep:
+                  true,
+              },
+            })
+
+          if (
+            fresh?.state ===
+              'RUNNING' &&
+            fresh.currentStep ===
+              currentPosition
+          ) {
+            /*
+             * El step figura COMPLETED pero
+             * currentStep no avanzó.
+             *
+             * Eso representa estado inconsistente,
+             * así que no adivinamos.
+             */
+            await this.orchestrator.transition(
+              workflow.id,
+              'NEEDS_HUMAN_REVIEW',
+            )
+
+            reason =
+              'INCONSISTENT_COMPLETED_STEP'
+
+            break
+          }
+
+          /*
+           * Otra réplica probablemente avanzó.
+           * Releemos desde PostgreSQL.
+           */
+          continue
+        }
+
+        if (
+          result.status ===
+          'NOT_READY'
+        ) {
+          /*
+           * Otra réplica pudo haber avanzado
+           * el step. Releeremos una vez más
+           * en este mismo ciclo.
+           */
+          const fresh =
+            await this.db.agentWorkflow.findFirst({
+              where: {
+                id:
+                  workflow.id,
+
+                tenantId:
+                  this.tenantId,
+              },
+
+              select: {
+                state:
+                  true,
+
+                currentStep:
+                  true,
+              },
+            })
+
+          if (
+            fresh?.state ===
+              'RUNNING' &&
+            fresh.currentStep !==
+              currentPosition
+          ) {
+            continue
+          }
+
+          reason =
+            'STEP_NOT_READY'
+
+          break
+        }
+
+        if (
+          result.status ===
+          'MODE_BLOCKED'
+        ) {
+          /*
+           * ASSIST / HUMAN_TAKEOVER / PAUSED
+           * preservan el workflow.
+           *
+           * Cuando vuelva a AUTO, un próximo
+           * ciclo podrá continuar.
+           */
+          reason =
+            'CONVERSATION_MODE_BLOCKED'
+
+          break
+        }
+
+        if (
+          result.status ===
+          'RETRY_REQUIRED'
+        ) {
+          /*
+           * El fallo ya quedó persistido
+           * por WorkflowStepRunnerService.
+           *
+           * No hacemos un retry agresivo
+           * dentro del mismo ciclo.
+           */
+          reason =
+            'STEP_RETRY_REQUIRED'
+
+          break
+        }
+
+        if (
+          result.status ===
+          'NEEDS_HUMAN_REVIEW'
+        ) {
+          reason =
+            'STEP_NEEDS_HUMAN_REVIEW'
+
+          break
+        }
+
+        /*
+         * Fail closed para cualquier estado
+         * futuro que todavía no entendamos.
+         */
+        reason =
+          'UNKNOWN_STEP_RESULT'
+
+        break
+      }
+
+      /*
+       * Si alcanzó el presupuesto de steps,
+       * simplemente continuará en otro ciclo.
+       *
+       * No lo marcamos como error porque un
+       * plan válido puede contener muchos steps.
+       */
+      if (
+        !completed &&
+        !reason &&
+        stepsCompleted >=
+          MAX_STEPS_PER_WORKFLOW_CYCLE
+      ) {
+        reason =
+          'CYCLE_STEP_LIMIT'
+      }
+
+      results.push({
+        workflowId:
+          candidate.id,
+
+        stepsCompleted,
+
+        completed,
+
+        ...(reason
+          ? {
+              reason,
+            }
+          : {}),
+      })
+    }
+
+    return {
+      scanned:
+        workflows.length,
+
+      stepsCompleted:
+        totalStepsCompleted,
+
+      completed:
+        totalCompleted,
+
+      results,
+    }
+  }
+
+  /**
+   * Convierte WAITING_TIME vencidos
+   * en eventos TIME_REACHED.
+   *
+   * sourceKey determinístico evita
+   * duplicados.
    */
   async createDueTimerEvents(
     now = new Date(),
@@ -262,10 +773,12 @@ export class AgentEventWorkerService
         now,
       )
 
-    const events = []
+    const events =
+      []
 
     for (
-      const workflow of workflows
+      const workflow of
+      workflows
     ) {
       if (
         !workflow.wakeAt
@@ -324,29 +837,149 @@ export class AgentEventWorkerService
   }
 
   /**
-   * Un ciclo completo:
+   * Ciclo durable completo:
    *
-   * 1. crea eventos para timers vencidos;
-   * 2. procesa eventos pendientes.
+   * 1. timers vencidos → AgentEvent
+   * 2. AgentEvent → resume de workflows
+   * 3. RUNNING → steps determinísticos
    *
-   * Todo está respaldado por PostgreSQL,
-   * por lo que un reinicio no pierde
-   * el trabajo pendiente.
+   * El paso 3 también recupera workflows
+   * que quedaron RUNNING antes de un crash.
    */
   async processOnce(
     now = new Date(),
   ) {
-    const timers={due:0,createdOrExisting:0},events={scanned:0,resumed:0}
-    // Enumerate tenants with durable work. No default-tenant impersonation.
-    const tenants=await this.db.tenant.findMany({where:{agentProcessingEnabled:true},select:{id:true},orderBy:{id:'asc'}})
-    for(const tenant of tenants){
-      const scope={tenantId:tenant.id} as LocalTenantService
-      const processor=new AgentEventWorkerService(this.db,scope,new AgentOrchestratorService(this.db,scope))
-      const timerResult=await processor.createDueTimerEvents(now)
-      const eventResult=await processor.processPendingEvents(100,now)
-      timers.due+=timerResult.due;timers.createdOrExisting+=timerResult.createdOrExisting
-      events.scanned+=eventResult.scanned;events.resumed+=eventResult.resumed
+    const timers = {
+      due:
+        0,
+
+      createdOrExisting:
+        0,
     }
-    return {timers,events}
+
+    const events = {
+      scanned:
+        0,
+
+      resumed:
+        0,
+    }
+
+    const workflows = {
+      scanned:
+        0,
+
+      stepsCompleted:
+        0,
+
+      completed:
+        0,
+    }
+
+    /*
+     * El worker global enumera tenants
+     * explícitamente habilitados.
+     *
+     * Cada tenant recibe servicios
+     * completamente scopeados.
+     */
+    const tenants =
+      await this.db.tenant.findMany({
+        where: {
+          agentProcessingEnabled:
+            true,
+        },
+
+        select: {
+          id:
+            true,
+        },
+
+        orderBy: {
+          id:
+            'asc',
+        },
+      })
+
+    for (
+      const tenant of
+      tenants
+    ) {
+      const scope = {
+        tenantId:
+          tenant.id,
+      } as LocalTenantService
+
+      const tenantOrchestrator =
+        new AgentOrchestratorService(
+          this.db,
+          scope,
+        )
+
+      const processor =
+        new AgentEventWorkerService(
+          this.db,
+          scope,
+          tenantOrchestrator,
+        )
+
+      /*
+       * 1. Recuperar timers.
+       */
+      const timerResult =
+        await processor.createDueTimerEvents(
+          now,
+        )
+
+      /*
+       * 2. Consumir eventos y reanudar WAIT.
+       */
+      const eventResult =
+        await processor.processPendingEvents(
+          100,
+          now,
+        )
+
+      /*
+       * 3. Continuar workflows RUNNING.
+       *
+       * Esto incluye:
+       *
+       * - los recién reanudados;
+       * - los que ya estaban RUNNING
+       *   antes de reiniciar el servidor.
+       */
+      const workflowResult =
+        await processor.processRunnableWorkflows(
+          100,
+        )
+
+      timers.due +=
+        timerResult.due
+
+      timers.createdOrExisting +=
+        timerResult.createdOrExisting
+
+      events.scanned +=
+        eventResult.scanned
+
+      events.resumed +=
+        eventResult.resumed
+
+      workflows.scanned +=
+        workflowResult.scanned
+
+      workflows.stepsCompleted +=
+        workflowResult.stepsCompleted
+
+      workflows.completed +=
+        workflowResult.completed
+    }
+
+    return {
+      timers,
+      events,
+      workflows,
+    }
   }
 }

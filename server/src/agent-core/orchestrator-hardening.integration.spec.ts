@@ -75,8 +75,8 @@ describe.skipIf(!url)('Orchestrator hardening PostgreSQL',()=>{
   it('global worker processes independent tenants with same sourceKey',async()=>{
     const a=await setup(),b=await setup();await a.wait();await b.wait();await a.emit();await b.emit()
     await a.worker.processOnce()
-    expect((await a.service.getWorkflow(a.workflow.id)).state).toBe('RUNNING')
-    expect((await b.service.getWorkflow(b.workflow.id)).state).toBe('RUNNING')
+    expect((await a.service.getWorkflow(a.workflow.id)).state).toBe('COMPLETED')
+    expect((await b.service.getWorkflow(b.workflow.id)).state).toBe('COMPLETED')
     await expect(a.service.getWorkflow(b.workflow.id)).rejects.toThrow()
   })
   it.each(['AUTO','ASSIST','HUMAN_TAKEOVER','PAUSED'] as const)('mode %s controls autonomous resume',async mode=>{
