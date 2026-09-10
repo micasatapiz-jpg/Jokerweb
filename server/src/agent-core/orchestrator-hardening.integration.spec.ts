@@ -43,6 +43,9 @@ import {
 import {
   WorkflowStepRunnerService,
 } from './workflow-step-runner.service.js'
+import {
+  QuoteWorkflowService,
+} from './quote-workflow.service.js'
 
 const url =
   process.env.TEST_DATABASE_URL
@@ -3296,6 +3299,827 @@ describe.skipIf(
           recoveredWorkflow.state,
         ).toBe(
           'COMPLETED',
+        )
+      },
+    )
+
+
+    /*
+     * ---------------------------------------------------
+     * END-TO-END COMMERCIAL RESUME
+     * ---------------------------------------------------
+     *
+     * Estas pruebas recorren el camino real:
+     *
+     * createDraft()
+     *   -> ensureQuoteWait()
+     *   -> WAITING_OWNER
+     *   -> AgentEvent
+     *   -> worker.processOnce()
+     *   -> CHECK_POLICY
+     *   -> RETRY_QUOTE_DRAFT
+     */
+
+    it(
+      'worker resumes commercial wait and fails closed without executable configuration',
+      async () => {
+        const h =
+          await withJob()
+
+        await db.conversationMessage.create({
+          data: {
+            conversationId:
+              h.chat.id,
+
+            direction:
+              'INBOUND',
+
+            type:
+              'TEXT',
+
+            text:
+              'Quiero cotizar este producto.',
+
+            source:
+              'SIMULATION',
+
+            senderExternalId:
+              h.chat.externalId,
+          },
+        })
+
+        await db.contactProfile.update({
+          where: {
+            id:
+              h.contact.id,
+          },
+
+          data: {
+            name:
+              'Cliente end to end',
+          },
+        })
+
+        const product =
+          await db.product.create({
+            data: {
+              tenantId:
+                h.id,
+
+              name:
+                'Producto sin configuración ejecutable',
+
+              slug:
+                `producto-e2e-sin-config-${randomUUID()}`,
+
+              category:
+                'TEST',
+            },
+          })
+
+        await db.job.update({
+          where: {
+            id:
+              h.job.id,
+          },
+
+          data: {
+            productId:
+              product.id,
+
+            requirements: {
+              quantity:
+                2,
+            },
+          },
+        })
+
+        const quoteService =
+          new QuoteWorkflowService(
+            db,
+            h.tenant,
+          )
+
+        const first =
+          await quoteService.createDraft(
+            {
+              jobId:
+                h.job.id,
+
+              expectedRevision:
+                1,
+
+              requestKey:
+                `e2e-initial-${randomUUID()}`,
+
+              evidence:
+                'Intento inicial de cotización sin configuración ejecutable.',
+            },
+            {
+              id:
+                'e2e-system',
+
+              role:
+                'SYSTEM',
+            },
+          )
+
+        expect(
+          first.status,
+        ).toBe(
+          'RULE_NOT_CONFIGURED',
+        )
+
+        const correlationKey =
+          `quote-wait:${h.job.id}:1:RULE_NOT_CONFIGURED`
+
+        const workflow =
+          await db.agentWorkflow.findUniqueOrThrow({
+            where: {
+              tenantId_requestKey: {
+                tenantId:
+                  h.id,
+
+                requestKey:
+                  correlationKey,
+              },
+            },
+          })
+
+        expect(
+          workflow.state,
+        ).toBe(
+          'WAITING_OWNER',
+        )
+
+        const review =
+          await db.ownerReview.findUniqueOrThrow({
+            where: {
+              tenantId_dedupeKey: {
+                tenantId:
+                  h.id,
+
+                dedupeKey:
+                  correlationKey,
+              },
+            },
+          })
+
+        await h.service.emitEvent({
+          workflowId:
+            workflow.id,
+
+          jobId:
+            h.job.id,
+
+          conversationId:
+            h.chat.id,
+
+          sourceKey:
+            `e2e-owner-knowledge-${randomUUID()}`,
+
+          type:
+            'COMMERCIAL_KNOWLEDGE_VERIFIED',
+
+          actorType:
+            'OWNER',
+
+          payload: {
+            ownerReviewId:
+              review.id,
+          },
+        })
+
+        const cycle =
+          await h.worker.processOnce()
+
+        expect(
+          cycle.events.resumed,
+        ).toBe(
+          1,
+        )
+
+        const finalWorkflow =
+          await db.agentWorkflow.findUniqueOrThrow({
+            where: {
+              id:
+                workflow.id,
+            },
+          })
+
+        expect(
+          finalWorkflow.state,
+        ).toBe(
+          'NEEDS_HUMAN_REVIEW',
+        )
+
+        expect(
+          finalWorkflow.waitingReason,
+        ).toBe(
+          'COMMERCIAL_RULE_NOT_CONFIGURED',
+        )
+
+        expect(
+          finalWorkflow.currentStep,
+        ).toBe(
+          1,
+        )
+
+        const policyStep =
+          await db.agentWorkflowStep.findFirstOrThrow({
+            where: {
+              tenantId:
+                h.id,
+
+              workflowId:
+                workflow.id,
+
+              stepKey:
+                'review-current-rules',
+            },
+          })
+
+        expect(
+          policyStep.status,
+        ).not.toBe(
+          'COMPLETED',
+        )
+
+        expect(
+          policyStep.attempt,
+        ).toBe(
+          0,
+        )
+
+        expect(
+          policyStep.resultJson,
+        ).toMatchObject({
+          checked:
+            false,
+
+          handler:
+            'COMMERCIAL_RULE_GATE',
+
+          reason:
+            'COMMERCIAL_RULE_NOT_CONFIGURED',
+
+          authority:
+            'NO_COMMERCIAL_AUTHORIZATION',
+        })
+
+        expect(
+          await db.quote.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          0,
+        )
+
+        expect(
+          await db.approval.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE',
+            },
+          }),
+        ).toBe(
+          0,
+        )
+
+        expect(
+          await db.agentOutbox.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          0,
+        )
+      },
+    )
+
+    it(
+      'worker resumes commercial wait and reaches pending approval when executable policy exists',
+      async () => {
+        const h =
+          await withJob()
+
+        await db.conversationMessage.create({
+          data: {
+            conversationId:
+              h.chat.id,
+
+            direction:
+              'INBOUND',
+
+            type:
+              'TEXT',
+
+            text:
+              'Necesito una cotización.',
+
+            source:
+              'SIMULATION',
+
+            senderExternalId:
+              h.chat.externalId,
+          },
+        })
+
+        await db.contactProfile.update({
+          where: {
+            id:
+              h.contact.id,
+          },
+
+          data: {
+            name:
+              'Cliente end to end listo',
+          },
+        })
+
+        const product =
+          await db.product.create({
+            data: {
+              tenantId:
+                h.id,
+
+              name:
+                'Producto end to end',
+
+              slug:
+                `producto-e2e-${randomUUID()}`,
+
+              category:
+                'TEST',
+            },
+          })
+
+        await db.job.update({
+          where: {
+            id:
+              h.job.id,
+          },
+
+          data: {
+            productId:
+              product.id,
+
+            requirements: {
+              quantity:
+                2,
+            },
+          },
+        })
+
+        const quoteService =
+          new QuoteWorkflowService(
+            db,
+            h.tenant,
+          )
+
+        const first =
+          await quoteService.createDraft(
+            {
+              jobId:
+                h.job.id,
+
+              expectedRevision:
+                1,
+
+              requestKey:
+                `e2e-initial-${randomUUID()}`,
+
+              evidence:
+                'Intento inicial antes de publicar la configuración comercial.',
+            },
+            {
+              id:
+                'e2e-system',
+
+              role:
+                'SYSTEM',
+            },
+          )
+
+        expect(
+          first.status,
+        ).toBe(
+          'RULE_NOT_CONFIGURED',
+        )
+
+        const correlationKey =
+          `quote-wait:${h.job.id}:1:RULE_NOT_CONFIGURED`
+
+        const workflow =
+          await db.agentWorkflow.findUniqueOrThrow({
+            where: {
+              tenantId_requestKey: {
+                tenantId:
+                  h.id,
+
+                requestKey:
+                  correlationKey,
+              },
+            },
+          })
+
+        const review =
+          await db.ownerReview.findUniqueOrThrow({
+            where: {
+              tenantId_dedupeKey: {
+                tenantId:
+                  h.id,
+
+                dedupeKey:
+                  correlationKey,
+              },
+            },
+          })
+
+        const configuration =
+          await db.productConfiguration.create({
+            data: {
+              tenantId:
+                h.id,
+
+              productId:
+                product.id,
+
+              version:
+                1,
+
+              updatedBy:
+                h.owner.id,
+
+              rules: {
+                isActive:
+                  true,
+
+                validFrom:
+                  null,
+
+                validUntil:
+                  null,
+
+                commercialPricing:
+                  null,
+
+                quotationRules: {
+                  requiredFields: [
+                    'quantity',
+                  ],
+
+                  optionalFields:
+                    [],
+
+                  fields: {
+                    quantity: {
+                      question:
+                        '¿Cuántas unidades necesitas?',
+
+                      type:
+                        'number',
+
+                      min:
+                        1,
+                    },
+                  },
+
+                  technicalRequirements:
+                    [],
+
+                  materials:
+                    [],
+
+                  finishes:
+                    [],
+
+                  requiresDesign:
+                    false,
+
+                  pricingEngine:
+                    'STANDARD_AREA_V1',
+
+                  pricingInputs: {
+                    quantity: {
+                      source:
+                        'field',
+
+                      field:
+                        'quantity',
+                    },
+
+                    widthM:
+                      null,
+
+                    heightM:
+                      null,
+
+                    includeDesign: {
+                      source:
+                        'constant',
+
+                      value:
+                        false,
+                    },
+
+                    installationRequired: {
+                      source:
+                        'constant',
+
+                      value:
+                        false,
+                    },
+
+                    includeTransport: {
+                      source:
+                        'constant',
+
+                      value:
+                        false,
+                    },
+                  },
+
+                  validityDays:
+                    15,
+                },
+
+                autoQuoteEnabled:
+                  false,
+
+                requiresHumanReview:
+                  true,
+              },
+            },
+          })
+
+        const priceRule =
+          await db.priceRule.create({
+            data: {
+              tenantId:
+                h.id,
+
+              productId:
+                product.id,
+
+              name:
+                'Tarifa end to end real',
+
+              basePrice:
+                100,
+
+              isDemo:
+                false,
+
+              isActive:
+                true,
+
+              validFrom:
+                new Date(
+                  Date.now() -
+                    60_000,
+                ),
+            },
+          })
+
+        await h.service.emitEvent({
+          workflowId:
+            workflow.id,
+
+          jobId:
+            h.job.id,
+
+          conversationId:
+            h.chat.id,
+
+          sourceKey:
+            `e2e-owner-knowledge-${randomUUID()}`,
+
+          type:
+            'COMMERCIAL_KNOWLEDGE_VERIFIED',
+
+          actorType:
+            'OWNER',
+
+          payload: {
+            ownerReviewId:
+              review.id,
+          },
+        })
+
+        const cycle =
+          await h.worker.processOnce()
+
+        expect(
+          cycle.events.resumed,
+        ).toBe(
+          1,
+        )
+
+        expect(
+          cycle.workflows.stepsCompleted,
+        ).toBe(
+          2,
+        )
+
+        expect(
+          cycle.workflows.completed,
+        ).toBe(
+          1,
+        )
+
+        const finalWorkflow =
+          await db.agentWorkflow.findUniqueOrThrow({
+            where: {
+              id:
+                workflow.id,
+            },
+          })
+
+        expect(
+          finalWorkflow.state,
+        ).toBe(
+          'COMPLETED',
+        )
+
+        expect(
+          finalWorkflow.currentStep,
+        ).toBe(
+          3,
+        )
+
+        const steps =
+          await db.agentWorkflowStep.findMany({
+            where: {
+              tenantId:
+                h.id,
+
+              workflowId:
+                workflow.id,
+            },
+
+            orderBy: {
+              position:
+                'asc',
+            },
+          })
+
+        expect(
+          steps,
+        ).toHaveLength(
+          3,
+        )
+
+        expect(
+          steps.map(
+            (
+              step,
+            ) => step.status,
+          ),
+        ).toEqual([
+          'COMPLETED',
+          'COMPLETED',
+          'COMPLETED',
+        ])
+
+        expect(
+          steps[1]!.resultJson,
+        ).toMatchObject({
+          checked:
+            true,
+
+          handler:
+            'COMMERCIAL_RULE_GATE',
+
+          configurationId:
+            configuration.id,
+
+          priceRuleId:
+            priceRule.id,
+
+          authority:
+            'NO_COMMERCIAL_AUTHORIZATION',
+        })
+
+        expect(
+          steps[2]!.resultJson,
+        ).toMatchObject({
+          checked:
+            true,
+
+          handler:
+            'RETRY_QUOTE_DRAFT',
+
+          quoteRetryStatus:
+            'PENDING_APPROVAL',
+
+          authority:
+            'NO_COMMERCIAL_AUTHORIZATION',
+        })
+
+        expect(
+          await db.quote.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        const quote =
+          await db.quote.findFirstOrThrow({
+            where: {
+              tenantId:
+                h.id,
+            },
+          })
+
+        expect(
+          quote.status,
+        ).toBe(
+          'PENDING_APPROVAL',
+        )
+
+        expect(
+          await db.approval.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE',
+
+              status:
+                'PENDING',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.task.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'APPROVE_QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.agentOutbox.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          0,
+        )
+
+        /*
+         * Un segundo ciclo no debe duplicar nada.
+         */
+        await h.worker.processOnce()
+
+        expect(
+          await db.quote.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.approval.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
         )
       },
     )
