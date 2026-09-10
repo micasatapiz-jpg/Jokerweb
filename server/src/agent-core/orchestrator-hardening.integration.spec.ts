@@ -382,6 +382,214 @@ describe.skipIf(
       }
     }
 
+
+    async function configureExecutableQuote(
+      h:
+        Awaited<
+          ReturnType<
+            typeof withJob
+          >
+        >,
+    ) {
+      await db.contactProfile.update({
+        where: {
+          id:
+            h.contact.id,
+        },
+
+        data: {
+          name:
+            'Cliente de prueba',
+        },
+      })
+
+      const product =
+        await db.product.create({
+          data: {
+            tenantId:
+              h.id,
+
+            name:
+              'Producto cotizable',
+
+            slug:
+              `producto-cotizable-${randomUUID()}`,
+
+            category:
+              'TEST',
+          },
+        })
+
+      await db.job.update({
+        where: {
+          id:
+            h.job.id,
+        },
+
+        data: {
+          productId:
+            product.id,
+
+          requirements: {
+            quantity:
+              2,
+          },
+        },
+      })
+
+      const configuration =
+        await db.productConfiguration.create({
+          data: {
+            tenantId:
+              h.id,
+
+            productId:
+              product.id,
+
+            version:
+              1,
+
+            updatedBy:
+              h.owner.id,
+
+            rules: {
+              isActive:
+                true,
+
+              validFrom:
+                null,
+
+              validUntil:
+                null,
+
+              commercialPricing:
+                null,
+
+              quotationRules: {
+                requiredFields: [
+                  'quantity',
+                ],
+
+                optionalFields:
+                  [],
+
+                fields: {
+                  quantity: {
+                    question:
+                      '¿Cuántas unidades necesitas?',
+
+                    type:
+                      'number',
+
+                    min:
+                      1,
+                  },
+                },
+
+                technicalRequirements:
+                  [],
+
+                materials:
+                  [],
+
+                finishes:
+                  [],
+
+                requiresDesign:
+                  false,
+
+                pricingEngine:
+                  'STANDARD_AREA_V1',
+
+                pricingInputs: {
+                  quantity: {
+                    source:
+                      'field',
+
+                    field:
+                      'quantity',
+                  },
+
+                  widthM:
+                    null,
+
+                  heightM:
+                    null,
+
+                  includeDesign: {
+                    source:
+                      'constant',
+
+                    value:
+                      false,
+                  },
+
+                  installationRequired: {
+                    source:
+                      'constant',
+
+                    value:
+                      false,
+                  },
+
+                  includeTransport: {
+                    source:
+                      'constant',
+
+                    value:
+                      false,
+                  },
+                },
+
+                validityDays:
+                  15,
+              },
+
+              autoQuoteEnabled:
+                false,
+
+              requiresHumanReview:
+                true,
+            },
+          },
+        })
+
+      const priceRule =
+        await db.priceRule.create({
+          data: {
+            tenantId:
+              h.id,
+
+            productId:
+              product.id,
+
+            name:
+              'Tarifa ejecutable de prueba',
+
+            basePrice:
+              100,
+
+            isDemo:
+              false,
+
+            isActive:
+              true,
+
+            validFrom:
+              new Date(
+                Date.now() -
+                  60_000,
+              ),
+          },
+        })
+
+      return {
+        product,
+        configuration,
+        priceRule,
+      }
+    }
+
     it(
       'atomic emit in two replicas returns one event and rejects actor mismatch',
       async () => {
@@ -2078,7 +2286,7 @@ describe.skipIf(
 
             contentJson: {
               note:
-                'El OWNER indicó una referencia comercial.',
+                'El OWNER indicÃ³ una referencia comercial.',
             },
 
             applicabilityJson: {
@@ -2213,7 +2421,7 @@ describe.skipIf(
                 h.id,
 
               name:
-                'Producto comercial válido',
+                'Producto comercial vÃ¡lido',
 
               slug:
                 `producto-commercial-ready-${randomUUID()}`,
@@ -2279,7 +2487,7 @@ describe.skipIf(
                   fields: {
                     quantity: {
                       question:
-                        '¿Cuántas unidades necesitas?',
+                        'Â¿CuÃ¡ntas unidades necesitas?',
 
                       type:
                         'number',
@@ -2520,6 +2728,574 @@ describe.skipIf(
           }),
         ).toBe(
           0,
+        )
+      },
+    )
+
+
+    /*
+     * ---------------------------------------------------
+     * DURABLE QUOTE RETRY
+     * ---------------------------------------------------
+     */
+
+    it(
+      'retry quote draft creates one quote and one approval',
+      async () => {
+        const h =
+          await withJob()
+
+        await configureExecutableQuote(
+          h,
+        )
+
+        await db.agentWorkflowStep.updateMany({
+          where: {
+            workflowId:
+              h.workflow.id,
+          },
+
+          data: {
+            type:
+              'CHECK_CONTEXT',
+
+            inputJson: {
+              handler:
+                'RETRY_QUOTE_DRAFT',
+            },
+          },
+        })
+
+        await h.service.startWorkflow(
+          h.workflow.id,
+        )
+
+        const runner =
+          new WorkflowStepRunnerService(
+            db,
+            h.tenant,
+          )
+
+        const result =
+          await runner.run(
+            h.workflow.id,
+            'wait',
+          )
+
+        expect(
+          result.status,
+        ).toBe(
+          'COMPLETED',
+        )
+
+        expect(
+          result,
+        ).toMatchObject({
+          status:
+            'COMPLETED',
+
+          result: {
+            checked:
+              true,
+
+            handler:
+              'RETRY_QUOTE_DRAFT',
+
+            authority:
+              'NO_COMMERCIAL_AUTHORIZATION',
+
+            quoteRetryStatus:
+              'PENDING_APPROVAL',
+
+            requirementsRevision:
+              1,
+          },
+        })
+
+        expect(
+          await db.quote.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.approval.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.task.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'APPROVE_QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.jobEvent.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE_DRAFT_CREATED',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.agentOutbox.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          0,
+        )
+
+        const workflow =
+          await h.service.getWorkflow(
+            h.workflow.id,
+          )
+
+        expect(
+          workflow.currentStep,
+        ).toBe(
+          1,
+        )
+
+        const step =
+          await db.agentWorkflowStep.findFirstOrThrow({
+            where: {
+              tenantId:
+                h.id,
+
+              workflowId:
+                h.workflow.id,
+
+              stepKey:
+                'wait',
+            },
+          })
+
+        expect(
+          step.status,
+        ).toBe(
+          'COMPLETED',
+        )
+
+        expect(
+          step.attempt,
+        ).toBe(
+          1,
+        )
+
+        const replay =
+          await runner.run(
+            h.workflow.id,
+            'wait',
+          )
+
+        expect(
+          replay.status,
+        ).toBe(
+          'REPLAY',
+        )
+
+        expect(
+          await db.quote.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.approval.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+      },
+    )
+
+    it(
+      'retry quote draft survives crash after draft creation without duplicates',
+      async () => {
+        const h =
+          await withJob()
+
+        await configureExecutableQuote(
+          h,
+        )
+
+        await db.agentWorkflowStep.updateMany({
+          where: {
+            workflowId:
+              h.workflow.id,
+          },
+
+          data: {
+            type:
+              'CHECK_CONTEXT',
+
+            inputJson: {
+              handler:
+                'RETRY_QUOTE_DRAFT',
+            },
+          },
+        })
+
+        await h.service.startWorkflow(
+          h.workflow.id,
+        )
+
+        let fail =
+          true
+
+        const faultDb =
+          new Proxy(
+            db,
+            {
+              get(
+                target,
+                key,
+              ) {
+                if (
+                  key ===
+                  '$transaction'
+                ) {
+                  return (
+                    work:
+                      Function,
+                  ) =>
+                    db.$transaction(
+                      (
+                        tx,
+                      ) =>
+                        work(
+                          new Proxy(
+                            tx,
+                            {
+                              get(
+                                t,
+                                k,
+                              ) {
+                                if (
+                                  k ===
+                                  'auditLog'
+                                ) {
+                                  return {
+                                    ...t.auditLog,
+
+                                    create:
+                                      async (
+                                        args:
+                                          any,
+                                      ) => {
+                                        if (
+                                          fail &&
+                                          args.data.action ===
+                                            'WORKFLOW_QUOTE_RETRY_COMPLETED'
+                                        ) {
+                                          fail =
+                                            false
+
+                                          throw new Error(
+                                            'fixture crash after quote draft',
+                                          )
+                                        }
+
+                                        return t.auditLog.create(
+                                          args,
+                                        )
+                                      },
+                                  }
+                                }
+
+                                return Reflect.get(
+                                  t,
+                                  k,
+                                )
+                              },
+                            },
+                          ),
+                        ),
+                    )
+                }
+
+                return Reflect.get(
+                  target,
+                  key,
+                )
+              },
+            },
+          )
+
+        const crashingRunner =
+          new WorkflowStepRunnerService(
+            faultDb,
+            h.tenant,
+          )
+
+        await expect(
+          crashingRunner.run(
+            h.workflow.id,
+            'wait',
+          ),
+        ).rejects.toThrow(
+          'fixture crash after quote draft',
+        )
+
+        /*
+         * createDraft() ya confirmó su propia
+         * transacción antes del crash simulado.
+         */
+        expect(
+          await db.quote.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.approval.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.task.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'APPROVE_QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        const afterCrash =
+          await db.agentWorkflowStep.findFirstOrThrow({
+            where: {
+              tenantId:
+                h.id,
+
+              workflowId:
+                h.workflow.id,
+
+              stepKey:
+                'wait',
+            },
+          })
+
+        expect(
+          afterCrash.status,
+        ).not.toBe(
+          'COMPLETED',
+        )
+
+        expect(
+          (
+            await h.service.getWorkflow(
+              h.workflow.id,
+            )
+          ).currentStep,
+        ).toBe(
+          0,
+        )
+
+        /*
+         * Simula el siguiente ciclo del worker
+         * después del reinicio.
+         *
+         * El mismo step genera el mismo requestKey,
+         * por lo que createDraft() debe hacer replay.
+         */
+        const recovery =
+          await h.worker.processRunnableWorkflows()
+
+        expect(
+          recovery.stepsCompleted,
+        ).toBe(
+          1,
+        )
+
+        expect(
+          recovery.completed,
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.quote.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.approval.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.task.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'APPROVE_QUOTE',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.jobEvent.count({
+            where: {
+              tenantId:
+                h.id,
+
+              type:
+                'QUOTE_DRAFT_CREATED',
+            },
+          }),
+        ).toBe(
+          1,
+        )
+
+        expect(
+          await db.agentOutbox.count({
+            where: {
+              tenantId:
+                h.id,
+            },
+          }),
+        ).toBe(
+          0,
+        )
+
+        const finalStep =
+          await db.agentWorkflowStep.findFirstOrThrow({
+            where: {
+              tenantId:
+                h.id,
+
+              workflowId:
+                h.workflow.id,
+
+              stepKey:
+                'wait',
+            },
+          })
+
+        expect(
+          finalStep.status,
+        ).toBe(
+          'COMPLETED',
+        )
+
+        expect(
+          finalStep.attempt,
+        ).toBe(
+          1,
+        )
+
+        expect(
+          finalStep.resultJson,
+        ).toMatchObject({
+          checked:
+            true,
+
+          handler:
+            'RETRY_QUOTE_DRAFT',
+
+          quoteRetryStatus:
+            'PENDING_APPROVAL',
+
+          authority:
+            'NO_COMMERCIAL_AUTHORIZATION',
+        })
+
+        const recoveredWorkflow =
+          await h.service.getWorkflow(
+            h.workflow.id,
+          )
+
+        expect(
+          recoveredWorkflow.currentStep,
+        ).toBe(
+          1,
+        )
+
+        expect(
+          recoveredWorkflow.state,
+        ).toBe(
+          'COMPLETED',
         )
       },
     )

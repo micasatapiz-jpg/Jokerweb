@@ -1,12 +1,17 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
 import {
   Prisma,
 } from '../generated/prisma/client.js'
-import { PrismaService } from '../database/prisma.service.js'
-import { LocalTenantService } from '../common/local-tenant.service.js'
+import {
+  PrismaService,
+} from '../database/prisma.service.js'
+import {
+  LocalTenantService,
+} from '../common/local-tenant.service.js'
 import {
   productConfigurationSchema,
   configurationIsCurrent,
@@ -15,6 +20,9 @@ import {
 import {
   activePriceRuleWhere,
 } from '../pricing/active-price-rule.js'
+import {
+  QuoteWorkflowService,
+} from './quote-workflow.service.js'
 
 const json = (
   value: unknown,
@@ -25,9 +33,13 @@ const json = (
     ),
   )
 
-type StepHandler =
+type CommercialPolicyHandler =
   | 'COMMERCIAL_RULE_GATE'
   | 'QUOTE_READINESS'
+
+type StepHandler =
+  | CommercialPolicyHandler
+  | 'RETRY_QUOTE_DRAFT'
 
 type StepResult =
   Record<
@@ -35,20 +47,6 @@ type StepResult =
     unknown
   >
 
-/**
- * Ejecuta únicamente handlers internos
- * y determinísticos.
- *
- * EXECUTE_TOOL deliberadamente NO está
- * registrado aquí.
- *
- * Un resultado persistido en
- * AgentWorkflowStep funciona como recibo
- * idempotente del step.
- *
- * No se realizan operaciones de red dentro
- * de las transacciones de este runner.
- */
 @Injectable()
 export class WorkflowStepRunnerService {
   constructor(
@@ -88,7 +86,9 @@ export class WorkflowStepRunnerService {
       handler ===
         'COMMERCIAL_RULE_GATE' ||
       handler ===
-        'QUOTE_READINESS'
+        'QUOTE_READINESS' ||
+      handler ===
+        'RETRY_QUOTE_DRAFT'
     ) {
       return handler
     }
@@ -96,17 +96,28 @@ export class WorkflowStepRunnerService {
     return null
   }
 
+  private isCommercialPolicyHandler(
+    handler:
+      StepHandler |
+      null,
+  ):
+    handler is
+      CommercialPolicyHandler {
+    return (
+      handler ===
+        'COMMERCIAL_RULE_GATE' ||
+      handler ===
+        'QUOTE_READINESS'
+    )
+  }
+
   /**
-   * Bloquea un step por una condición
-   * comercial real.
+   * Mueve el workflow a revisión humana
+   * por una condición comercial real.
    *
-   * Importante:
-   *
-   * - no consume intentos técnicos;
-   * - no marca el step COMPLETED;
-   * - no avanza currentStep;
-   * - conserva el plan para revisión;
-   * - registra la razón exacta.
+   * No consume intentos técnicos.
+   * No completa el step.
+   * No avanza currentStep.
    */
   private async requireHumanReview(
     tx:
@@ -192,15 +203,155 @@ export class WorkflowStepRunnerService {
   }
 
   /**
+   * Registra un error técnico del step.
+   *
+   * Estos intentos sí cuentan.
+   *
+   * Al tercer fallo el workflow pasa a
+   * NEEDS_HUMAN_REVIEW.
+   */
+  private async recordTechnicalFailure(
+    workflowId: string,
+    stepKey: string,
+  ) {
+    const tenantId =
+      this.tenant.tenantId
+
+    await this.db.$transaction(
+      async (
+        tx,
+      ) => {
+        await tx.$queryRaw`
+          SELECT id
+          FROM "AgentWorkflow"
+          WHERE id = ${workflowId}::uuid
+            AND "tenantId" = ${tenantId}::uuid
+          FOR UPDATE
+        `
+
+        const workflow =
+          await tx.agentWorkflow.findFirst({
+            where: {
+              id:
+                workflowId,
+
+              tenantId,
+            },
+          })
+
+        if (
+          !workflow
+        ) {
+          return
+        }
+
+        const step =
+          await tx.agentWorkflowStep.findUnique({
+            where: {
+              tenantId_workflowId_stepKey: {
+                tenantId,
+                workflowId,
+                stepKey,
+              },
+            },
+          })
+
+        if (
+          !step ||
+          step.status ===
+            'COMPLETED'
+        ) {
+          return
+        }
+
+        await tx.agentWorkflowStep.update({
+          where: {
+            id:
+              step.id,
+          },
+
+          data: {
+            status:
+              'FAILED',
+
+            attempt: {
+              increment:
+                1,
+            },
+
+            resultJson: {
+              reason:
+                'TRANSACTION_FAILED',
+            },
+          },
+        })
+
+        /*
+         * step.attempt es el valor anterior
+         * al incremento.
+         *
+         * >= 2 significa que este fallo
+         * completa el tercer intento.
+         */
+        if (
+          step.attempt >=
+          2
+        ) {
+          await tx.agentWorkflow.update({
+            where: {
+              id:
+                workflowId,
+            },
+
+            data: {
+              state:
+                'NEEDS_HUMAN_REVIEW',
+
+              waitingReason:
+                'STEP_RETRY_EXHAUSTED',
+
+              version: {
+                increment:
+                  1,
+              },
+            },
+          })
+        }
+
+        await tx.auditLog.create({
+          data: {
+            tenantId,
+
+            entityType:
+              'AgentWorkflowStep',
+
+            entityId:
+              step.id,
+
+            action:
+              'WORKFLOW_STEP_FAILED',
+
+            details: {
+              workflowId,
+
+              attempt:
+                step.attempt +
+                1,
+            },
+          },
+        })
+      },
+    )
+  }
+
+  /**
    * Comprueba que el Job tenga actualmente
    * una política comercial ejecutable.
    *
-   * Esto NO calcula el precio.
-   * Esto NO publica reglas.
-   * Esto NO convierte conocimiento del OWNER
+   * NO calcula el precio.
+   * NO publica reglas.
+   * NO convierte conocimiento del OWNER
    * en configuración ejecutable.
-   *
-   * Solo comprueba facts ya persistidos.
    */
   private async checkCommercialPolicy(
     tx:
@@ -208,15 +359,19 @@ export class WorkflowStepRunnerService {
 
     input: {
       tenantId: string
+
       workflow: {
         id: string
         jobId: string | null
         contextJson: unknown
       }
+
       step: {
         id: string
       }
-      handler: StepHandler
+
+      handler:
+        CommercialPolicyHandler
     },
   ) {
     const {
@@ -260,11 +415,6 @@ export class WorkflowStepRunnerService {
       )
     }
 
-    /*
-     * Bloqueamos el Job durante la evaluación
-     * para no leer requisitos y versión de
-     * distintos momentos.
-     */
     await tx.$queryRaw`
       SELECT id
       FROM "Job"
@@ -331,17 +481,12 @@ export class WorkflowStepRunnerService {
         : {}
 
     /*
-     * COMMERCIAL_RULE_GATE nace de un snapshot
-     * concreto del Job.
+     * COMMERCIAL_RULE_GATE nace de un
+     * snapshot concreto.
      *
-     * Si cambiaron los requisitos mientras se
-     * esperaba al OWNER, no podemos aplicar
-     * silenciosamente la respuesta a otro estado.
-     *
-     * QUOTE_READINESS, en cambio, normalmente
-     * existe precisamente porque el CUSTOMER
-     * actualizó requisitos, por eso evalúa la
-     * revisión actual.
+     * QUOTE_READINESS puede existir
+     * precisamente porque el cliente
+     * actualizó requisitos.
      */
     if (
       handler ===
@@ -469,14 +614,6 @@ export class WorkflowStepRunnerService {
       )
     }
 
-    /*
-     * Leemos la última ProductConfiguration.
-     *
-     * Esto replica la garantía de
-     * ProductConfigurationService.get():
-     * debe existir, parsear correctamente
-     * y seguir vigente.
-     */
     const configuration =
       await tx.productConfiguration.findFirst({
         where: {
@@ -595,15 +732,6 @@ export class WorkflowStepRunnerService {
             >
         : {}
 
-    /*
-     * Evalúa únicamente requisitos y política.
-     *
-     * HUMAN_REVIEW no significa que la regla
-     * sea inválida.
-     *
-     * Puede significar que la empresa exige
-     * revisión humana antes de aprobar precio.
-     */
     const evaluation =
       evaluateProductRules(
         rules,
@@ -696,11 +824,6 @@ export class WorkflowStepRunnerService {
       )
     }
 
-    /*
-     * Aunque evaluateProductRules pueda indicar
-     * HUMAN_REVIEW, necesitamos comprobar que
-     * exista un motor de cálculo real.
-     */
     if (
       !rules.quotationRules
         .pricingEngine
@@ -738,11 +861,6 @@ export class WorkflowStepRunnerService {
       )
     }
 
-    /*
-     * STANDARD_AREA_V1 necesita bindings.
-     *
-     * GENERIC_V1 necesita commercialPricing.
-     */
     if (
       rules.quotationRules
         .pricingEngine ===
@@ -859,13 +977,6 @@ export class WorkflowStepRunnerService {
       )
     }
 
-    /*
-     * Finalmente exigimos una PriceRule REAL,
-     * activa, vigente y no demo.
-     *
-     * Si commercialPricing define tariffId,
-     * esa tarifa exacta debe existir.
-     */
     const now =
       new Date()
 
@@ -943,16 +1054,6 @@ export class WorkflowStepRunnerService {
       )
     }
 
-    /*
-     * Gate superado.
-     *
-     * Todavía NO hay autorización para:
-     *
-     * - enviar precio;
-     * - aprobar cotización;
-     * - confirmar pago;
-     * - iniciar producción.
-     */
     return {
       status:
         'READY' as const,
@@ -990,12 +1091,819 @@ export class WorkflowStepRunnerService {
     }
   }
 
+  /**
+   * Ejecuta el step durable RETRY_QUOTE_DRAFT.
+   *
+   * La llamada a QuoteWorkflowService.createDraft()
+   * ocurre deliberadamente FUERA de la transacción
+   * del runner.
+   *
+   * Esto evita una transacción anidada.
+   *
+   * La idempotencia se consigue mediante
+   * requestKey determinístico basado en step.id.
+   */
+  private async runRetryQuoteDraft(
+    workflowId:
+      string,
+
+    stepKey:
+      string,
+  ) {
+    const tenantId =
+      this.tenant.tenantId
+
+    /*
+     * -------------------------------------------------
+     * FASE 1
+     * -------------------------------------------------
+     *
+     * Validar y capturar el contexto actual.
+     */
+    const prepared =
+      await this.db.$transaction(
+        async (
+          tx,
+        ) => {
+          await tx.$queryRaw`
+            SELECT id
+            FROM "AgentWorkflow"
+            WHERE id = ${workflowId}::uuid
+              AND "tenantId" = ${tenantId}::uuid
+            FOR UPDATE
+          `
+
+          const workflow =
+            await tx.agentWorkflow.findFirst({
+              where: {
+                id:
+                  workflowId,
+
+                tenantId,
+              },
+            })
+
+          if (
+            !workflow
+          ) {
+            throw new NotFoundException(
+              'Workflow no encontrado.',
+            )
+          }
+
+          const step =
+            await tx.agentWorkflowStep.findUnique({
+              where: {
+                tenantId_workflowId_stepKey: {
+                  tenantId,
+                  workflowId,
+                  stepKey,
+                },
+              },
+            })
+
+          if (
+            !step
+          ) {
+            throw new NotFoundException(
+              'Step no encontrado.',
+            )
+          }
+
+          if (
+            step.status ===
+            'COMPLETED'
+          ) {
+            return {
+              kind:
+                'RETURN' as const,
+
+              value: {
+                status:
+                  'REPLAY' as const,
+
+                result:
+                  step.resultJson,
+              },
+            }
+          }
+
+          if (
+            workflow.state !==
+              'RUNNING' ||
+            step.position !==
+              workflow.currentStep
+          ) {
+            return {
+              kind:
+                'RETURN' as const,
+
+              value: {
+                status:
+                  'NOT_READY' as const,
+              },
+            }
+          }
+
+          if (
+            workflow.conversationId
+          ) {
+            const conversation =
+              await tx.conversation.findFirstOrThrow({
+                where: {
+                  id:
+                    workflow.conversationId,
+
+                  tenantId,
+                },
+              })
+
+            if (
+              conversation.automationMode !==
+              'AUTO'
+            ) {
+              return {
+                kind:
+                  'RETURN' as const,
+
+                value: {
+                  status:
+                    'MODE_BLOCKED' as const,
+                },
+              }
+            }
+          }
+
+          const handler =
+            this.getHandler(
+              step.inputJson,
+            )
+
+          if (
+            step.type !==
+              'CHECK_CONTEXT' ||
+            handler !==
+              'RETRY_QUOTE_DRAFT'
+          ) {
+            const review =
+              await this.requireHumanReview(
+                tx,
+                {
+                  tenantId,
+
+                  workflowId:
+                    workflow.id,
+
+                  stepId:
+                    step.id,
+
+                  reason:
+                    'STEP_HANDLER_REVIEW_REQUIRED',
+
+                  result: {
+                    checked:
+                      false,
+
+                    reason:
+                      'INVALID_RETRY_QUOTE_HANDLER',
+
+                    authority:
+                      'NO_COMMERCIAL_AUTHORIZATION',
+                  },
+                },
+              )
+
+            return {
+              kind:
+                'RETURN' as const,
+
+              value:
+                review,
+            }
+          }
+
+          if (
+            step.attempt >=
+            3
+          ) {
+            const review =
+              await this.requireHumanReview(
+                tx,
+                {
+                  tenantId,
+
+                  workflowId:
+                    workflow.id,
+
+                  stepId:
+                    step.id,
+
+                  reason:
+                    'STEP_RETRY_EXHAUSTED',
+
+                  result: {
+                    checked:
+                      false,
+
+                    handler,
+
+                    reason:
+                      'STEP_RETRY_EXHAUSTED',
+
+                    authority:
+                      'NO_COMMERCIAL_AUTHORIZATION',
+                  },
+                },
+              )
+
+            return {
+              kind:
+                'RETURN' as const,
+
+              value:
+                review,
+            }
+          }
+
+          if (
+            !workflow.jobId
+          ) {
+            const review =
+              await this.requireHumanReview(
+                tx,
+                {
+                  tenantId,
+
+                  workflowId:
+                    workflow.id,
+
+                  stepId:
+                    step.id,
+
+                  reason:
+                    'QUOTE_RETRY_JOB_REQUIRED',
+
+                  result: {
+                    checked:
+                      false,
+
+                    handler,
+
+                    reason:
+                      'QUOTE_RETRY_JOB_REQUIRED',
+
+                    authority:
+                      'NO_COMMERCIAL_AUTHORIZATION',
+                  },
+                },
+              )
+
+            return {
+              kind:
+                'RETURN' as const,
+
+              value:
+                review,
+            }
+          }
+
+          await tx.$queryRaw`
+            SELECT id
+            FROM "Job"
+            WHERE id = ${workflow.jobId}::uuid
+              AND "tenantId" = ${tenantId}::uuid
+            FOR SHARE
+          `
+
+          const job =
+            await tx.job.findFirst({
+              where: {
+                id:
+                  workflow.jobId,
+
+                tenantId,
+              },
+            })
+
+          if (
+            !job
+          ) {
+            const review =
+              await this.requireHumanReview(
+                tx,
+                {
+                  tenantId,
+
+                  workflowId:
+                    workflow.id,
+
+                  stepId:
+                    step.id,
+
+                  reason:
+                    'QUOTE_RETRY_JOB_NOT_FOUND',
+
+                  result: {
+                    checked:
+                      false,
+
+                    handler,
+
+                    reason:
+                      'QUOTE_RETRY_JOB_NOT_FOUND',
+
+                    authority:
+                      'NO_COMMERCIAL_AUTHORIZATION',
+                  },
+                },
+              )
+
+            return {
+              kind:
+                'RETURN' as const,
+
+              value:
+                review,
+            }
+          }
+
+          return {
+            kind:
+              'EXECUTE' as const,
+
+            workflowId:
+              workflow.id,
+
+            stepId:
+              step.id,
+
+            stepPosition:
+              step.position,
+
+            jobId:
+              job.id,
+
+            expectedRevision:
+              job.requirementsRevision,
+
+            requestKey:
+              `workflow-quote-retry:${step.id}`,
+
+            evidence:
+              `Reintento durable de cotización del workflow ${workflow.id}.`,
+          }
+        },
+      )
+
+    if (
+      prepared.kind ===
+      'RETURN'
+    ) {
+      return prepared.value
+    }
+
+    /*
+     * -------------------------------------------------
+     * FASE 2
+     * -------------------------------------------------
+     *
+     * createDraft abre su propia transacción.
+     *
+     * Nunca se ejecuta dentro de la transacción
+     * anterior.
+     */
+    let draft:
+      Awaited<
+        ReturnType<
+          QuoteWorkflowService['createDraft']
+        >
+      >
+
+    try {
+      const quoteService =
+        new QuoteWorkflowService(
+          this.db,
+          this.tenant,
+        )
+
+      draft =
+        await quoteService.createDraft(
+          {
+            jobId:
+              prepared.jobId,
+
+            expectedRevision:
+              prepared.expectedRevision,
+
+            requestKey:
+              prepared.requestKey,
+
+            evidence:
+              prepared.evidence,
+          },
+
+          {
+            /*
+             * Actor técnico interno.
+             *
+             * No representa al OWNER.
+             * No concede aprobación comercial.
+             */
+            id:
+              `agent-workflow:${prepared.workflowId}`,
+
+            role:
+              'SYSTEM',
+          },
+        )
+    } catch (
+      error
+    ) {
+      /*
+       * Conflictos determinísticos no deben
+       * reintentarse automáticamente tres veces.
+       *
+       * Ejemplos:
+       *
+       * - cambió la revisión;
+       * - apareció otra cotización vigente;
+       * - el Job cambió de estado.
+       */
+      if (
+        error instanceof
+          ConflictException ||
+        error instanceof
+          NotFoundException
+      ) {
+        return this.db.$transaction(
+          async (
+            tx,
+          ) => {
+            await tx.$queryRaw`
+              SELECT id
+              FROM "AgentWorkflow"
+              WHERE id = ${workflowId}::uuid
+                AND "tenantId" = ${tenantId}::uuid
+              FOR UPDATE
+            `
+
+            const workflow =
+              await tx.agentWorkflow.findFirst({
+                where: {
+                  id:
+                    workflowId,
+
+                  tenantId,
+                },
+              })
+
+            const step =
+              await tx.agentWorkflowStep.findUnique({
+                where: {
+                  tenantId_workflowId_stepKey: {
+                    tenantId,
+                    workflowId,
+                    stepKey,
+                  },
+                },
+              })
+
+            if (
+              !workflow ||
+              !step
+            ) {
+              return {
+                status:
+                  'NOT_READY' as const,
+              }
+            }
+
+            if (
+              step.status ===
+              'COMPLETED'
+            ) {
+              return {
+                status:
+                  'REPLAY' as const,
+
+                result:
+                  step.resultJson,
+              }
+            }
+
+            if (
+              workflow.state !==
+                'RUNNING' ||
+              workflow.currentStep !==
+                step.position
+            ) {
+              return {
+                status:
+                  'NOT_READY' as const,
+              }
+            }
+
+            return this.requireHumanReview(
+              tx,
+              {
+                tenantId,
+
+                workflowId:
+                  workflow.id,
+
+                stepId:
+                  step.id,
+
+                reason:
+                  'QUOTE_RETRY_CONTEXT_CHANGED',
+
+                result: {
+                  checked:
+                    false,
+
+                  handler:
+                    'RETRY_QUOTE_DRAFT',
+
+                  authority:
+                    'NO_COMMERCIAL_AUTHORIZATION',
+
+                  reason:
+                    'QUOTE_RETRY_CONTEXT_CHANGED',
+
+                  error:
+                    error.message,
+                },
+              },
+            )
+          },
+        )
+      }
+
+      /*
+       * Un error inesperado puede ser técnico
+       * y sí puede reintentarse.
+       */
+      await this.recordTechnicalFailure(
+        workflowId,
+        stepKey,
+      )
+
+      return {
+        status:
+          'RETRY_REQUIRED' as const,
+      }
+    }
+
+    /*
+     * -------------------------------------------------
+     * FASE 3
+     * -------------------------------------------------
+     *
+     * Persistir el recibo del step.
+     *
+     * Si hubo un crash después de createDraft()
+     * pero antes de esta fase, el próximo ciclo
+     * utilizará el mismo requestKey.
+     *
+     * QuoteWorkflowService hará replay.
+     */
+    return this.db.$transaction(
+      async (
+        tx,
+      ) => {
+        await tx.$queryRaw`
+          SELECT id
+          FROM "AgentWorkflow"
+          WHERE id = ${workflowId}::uuid
+            AND "tenantId" = ${tenantId}::uuid
+          FOR UPDATE
+        `
+
+        const workflow =
+          await tx.agentWorkflow.findFirst({
+            where: {
+              id:
+                workflowId,
+
+              tenantId,
+            },
+          })
+
+        if (
+          !workflow
+        ) {
+          throw new NotFoundException(
+            'Workflow no encontrado.',
+          )
+        }
+
+        const step =
+          await tx.agentWorkflowStep.findUnique({
+            where: {
+              tenantId_workflowId_stepKey: {
+                tenantId,
+                workflowId,
+                stepKey,
+              },
+            },
+          })
+
+        if (
+          !step
+        ) {
+          throw new NotFoundException(
+            'Step no encontrado.',
+          )
+        }
+
+        if (
+          step.status ===
+          'COMPLETED'
+        ) {
+          return {
+            status:
+              'REPLAY' as const,
+
+            result:
+              step.resultJson,
+          }
+        }
+
+        if (
+          workflow.state !==
+            'RUNNING' ||
+          workflow.currentStep !==
+            step.position
+        ) {
+          return {
+            status:
+              'NOT_READY' as const,
+          }
+        }
+
+        const result:
+          StepResult = {
+            checked:
+              true,
+
+            handler:
+              'RETRY_QUOTE_DRAFT',
+
+            authority:
+              'NO_COMMERCIAL_AUTHORIZATION',
+
+            quoteRetryStatus:
+              draft.status,
+
+            requestKey:
+              prepared.requestKey,
+
+            requirementsRevision:
+              prepared.expectedRevision,
+
+            /*
+             * Solo existirán en PENDING_APPROVAL.
+             */
+            ...(
+              draft.status ===
+                'PENDING_APPROVAL'
+                ? {
+                    quoteId:
+                      draft.quoteId,
+
+                    approvalId:
+                      draft.approvalId,
+                  }
+                : {
+                    taskId:
+                      draft.taskId,
+
+                    missingFields:
+                      draft.missingFields,
+                  }
+            ),
+          }
+
+        await tx.auditLog.create({
+          data: {
+            tenantId,
+
+            entityType:
+              'AgentWorkflowStep',
+
+            entityId:
+              step.id,
+
+            action:
+              'WORKFLOW_QUOTE_RETRY_COMPLETED',
+
+            details:
+              json({
+                workflowId,
+                result,
+              }),
+          },
+        })
+
+        await tx.agentWorkflowStep.update({
+          where: {
+            id:
+              step.id,
+          },
+
+          data: {
+            status:
+              'COMPLETED',
+
+            attempt: {
+              increment:
+                1,
+            },
+
+            completedAt:
+              new Date(),
+
+            resultJson:
+              json(
+                result,
+              ),
+          },
+        })
+
+        await tx.agentWorkflow.update({
+          where: {
+            id:
+              workflow.id,
+          },
+
+          data: {
+            currentStep: {
+              increment:
+                1,
+            },
+
+            version: {
+              increment:
+                1,
+            },
+          },
+        })
+
+        return {
+          status:
+            'COMPLETED' as const,
+
+          result,
+        }
+      },
+    )
+  }
+
   async run(
     workflowId: string,
     stepKey: string,
   ) {
     const tenantId =
       this.tenant.tenantId
+
+    /*
+     * RETRY_QUOTE_DRAFT necesita una ejecución
+     * en tres fases porque QuoteWorkflowService
+     * abre su propia transacción.
+     *
+     * Solo hacemos esta lectura para enrutar.
+     *
+     * runRetryQuoteDraft vuelve a validar todo
+     * bajo lock antes de ejecutar.
+     */
+    const descriptor =
+      await this.db.agentWorkflowStep.findUnique({
+        where: {
+          tenantId_workflowId_stepKey: {
+            tenantId,
+            workflowId,
+            stepKey,
+          },
+        },
+
+        select: {
+          inputJson:
+            true,
+        },
+      })
+
+    if (
+      descriptor &&
+      this.getHandler(
+        descriptor.inputJson,
+      ) ===
+        'RETRY_QUOTE_DRAFT'
+    ) {
+      return this.runRetryQuoteDraft(
+        workflowId,
+        stepKey,
+      )
+    }
 
     try {
       return await this.db.$transaction(
@@ -1047,27 +1955,19 @@ export class WorkflowStepRunnerService {
             )
           }
 
-          /*
-           * El step ya terminó anteriormente.
-           * No repetimos su efecto.
-           */
           if (
             step.status ===
             'COMPLETED'
           ) {
             return {
               status:
-                'REPLAY',
+                'REPLAY' as const,
 
               result:
                 step.resultJson,
             }
           }
 
-          /*
-           * Solo se puede ejecutar el step
-           * correspondiente a currentStep.
-           */
           if (
             workflow.state !==
               'RUNNING' ||
@@ -1076,14 +1976,10 @@ export class WorkflowStepRunnerService {
           ) {
             return {
               status:
-                'NOT_READY',
+                'NOT_READY' as const,
             }
           }
 
-          /*
-           * ConversationMode manda sobre
-           * ejecución autónoma.
-           */
           if (
             workflow.conversationId
           ) {
@@ -1103,7 +1999,7 @@ export class WorkflowStepRunnerService {
             ) {
               return {
                 status:
-                  'MODE_BLOCKED',
+                  'MODE_BLOCKED' as const,
               }
             }
           }
@@ -1115,10 +2011,6 @@ export class WorkflowStepRunnerService {
             'CREATE_TASK',
           ]
 
-          /*
-           * No ejecutamos herramientas críticas
-           * ni handlers desconocidos.
-           */
           if (
             !supportedTypes.includes(
               step.type,
@@ -1148,7 +2040,7 @@ export class WorkflowStepRunnerService {
 
             return {
               status:
-                'NEEDS_HUMAN_REVIEW',
+                'NEEDS_HUMAN_REVIEW' as const,
             }
           }
 
@@ -1156,6 +2048,81 @@ export class WorkflowStepRunnerService {
             this.getHandler(
               step.inputJson,
             )
+
+          /*
+           * Un handler conocido no debe ejecutarse
+           * bajo un tipo de step equivocado.
+           */
+          if (
+            handler ===
+              'RETRY_QUOTE_DRAFT'
+          ) {
+            return this.requireHumanReview(
+              tx,
+              {
+                tenantId,
+
+                workflowId:
+                  workflow.id,
+
+                stepId:
+                  step.id,
+
+                reason:
+                  'STEP_HANDLER_REVIEW_REQUIRED',
+
+                result: {
+                  checked:
+                    false,
+
+                  handler,
+
+                  reason:
+                    'RETRY_QUOTE_HANDLER_REQUIRES_CHECK_CONTEXT',
+
+                  authority:
+                    'NO_COMMERCIAL_AUTHORIZATION',
+                },
+              },
+            )
+          }
+
+          if (
+            this.isCommercialPolicyHandler(
+              handler,
+            ) &&
+            step.type !==
+              'CHECK_POLICY'
+          ) {
+            return this.requireHumanReview(
+              tx,
+              {
+                tenantId,
+
+                workflowId:
+                  workflow.id,
+
+                stepId:
+                  step.id,
+
+                reason:
+                  'STEP_HANDLER_REVIEW_REQUIRED',
+
+                result: {
+                  checked:
+                    false,
+
+                  handler,
+
+                  reason:
+                    'COMMERCIAL_POLICY_HANDLER_REQUIRES_CHECK_POLICY',
+
+                  authority:
+                    'NO_COMMERCIAL_AUTHORIZATION',
+                },
+              },
+            )
+          }
 
           let result:
             StepResult = {
@@ -1166,14 +2133,12 @@ export class WorkflowStepRunnerService {
                 true,
             }
 
-          /*
-           * CHECK_POLICY con handler comercial
-           * deja de ser un check vacío.
-           */
           if (
             step.type ===
               'CHECK_POLICY' &&
-            handler
+            this.isCommercialPolicyHandler(
+              handler,
+            )
           ) {
             const policy =
               await this.checkCommercialPolicy(
@@ -1216,12 +2181,6 @@ export class WorkflowStepRunnerService {
             step.type ===
             'CREATE_TASK'
           ) {
-            /*
-             * El dedupeKey usa el id del step.
-             *
-             * Si la transacción se reintenta,
-             * no se crean tareas duplicadas.
-             */
             const task =
               await tx.task.upsert({
                 where: {
@@ -1264,10 +2223,6 @@ export class WorkflowStepRunnerService {
               task.id
           }
 
-          /*
-           * Audit + receipt + avance del workflow
-           * viven en una sola transacción.
-           */
           await tx.auditLog.create({
             data: {
               tenantId,
@@ -1335,7 +2290,7 @@ export class WorkflowStepRunnerService {
 
           return {
             status:
-              'COMPLETED',
+              'COMPLETED' as const,
 
             result,
           }
@@ -1344,10 +2299,6 @@ export class WorkflowStepRunnerService {
     } catch (
       error
     ) {
-      /*
-       * NotFound es error lógico,
-       * no fallo transitorio.
-       */
       if (
         error instanceof
         NotFoundException
@@ -1355,126 +2306,14 @@ export class WorkflowStepRunnerService {
         throw error
       }
 
-      /*
-       * El efecto de la transacción anterior
-       * quedó revertido completamente.
-       *
-       * Persistimos solamente el recibo
-       * del fallo/reintento.
-       */
-      await this.db.$transaction(
-        async (
-          tx,
-        ) => {
-          await tx.$queryRaw`
-            SELECT id
-            FROM "AgentWorkflow"
-            WHERE id = ${workflowId}::uuid
-              AND "tenantId" = ${tenantId}::uuid
-            FOR UPDATE
-          `
-
-          const step =
-            await tx.agentWorkflowStep.findUnique({
-              where: {
-                tenantId_workflowId_stepKey: {
-                  tenantId,
-                  workflowId,
-                  stepKey,
-                },
-              },
-            })
-
-          if (
-            !step ||
-            step.status ===
-              'COMPLETED'
-          ) {
-            return
-          }
-
-          await tx.agentWorkflowStep.update({
-            where: {
-              id:
-                step.id,
-            },
-
-            data: {
-              status:
-                'FAILED',
-
-              attempt: {
-                increment:
-                  1,
-              },
-
-              resultJson: {
-                reason:
-                  'TRANSACTION_FAILED',
-              },
-            },
-          })
-
-          /*
-           * step.attempt es el valor ANTES
-           * del incremento anterior.
-           *
-           * >= 2 significa que este fallo
-           * completa el tercer intento.
-           */
-          if (
-            step.attempt >=
-            2
-          ) {
-            await tx.agentWorkflow.update({
-              where: {
-                id:
-                  workflowId,
-              },
-
-              data: {
-                state:
-                  'NEEDS_HUMAN_REVIEW',
-
-                waitingReason:
-                  'STEP_RETRY_EXHAUSTED',
-
-                version: {
-                  increment:
-                    1,
-                },
-              },
-            })
-          }
-
-          await tx.auditLog.create({
-            data: {
-              tenantId,
-
-              entityType:
-                'AgentWorkflowStep',
-
-              entityId:
-                step.id,
-
-              action:
-                'WORKFLOW_STEP_FAILED',
-
-              details: {
-                workflowId,
-
-                attempt:
-                  step.attempt +
-                  1,
-              },
-            },
-          })
-        },
+      await this.recordTechnicalFailure(
+        workflowId,
+        stepKey,
       )
 
       return {
         status:
-          'RETRY_REQUIRED',
+          'RETRY_REQUIRED' as const,
       }
     }
   }

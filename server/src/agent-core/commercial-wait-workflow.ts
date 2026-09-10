@@ -1,21 +1,43 @@
-import type { Prisma } from '../generated/prisma/client.js'
-import { AgentOrchestratorService } from './agent-orchestrator.service.js'
-import { transactionScope } from './transaction-scope.js'
+import type {
+  Prisma,
+} from '../generated/prisma/client.js'
+import {
+  AgentOrchestratorService,
+} from './agent-orchestrator.service.js'
+import {
+  transactionScope,
+} from './transaction-scope.js'
 
 export async function ensureCommercialWait(
-  tx: Prisma.TransactionClient,
-  tenantId: string,
+  tx:
+    Prisma.TransactionClient,
+
+  tenantId:
+    string,
+
   input: {
     conversationId: string
     jobId?: string
     taskId: string
     ownerReviewId: string
     correlationKey: string
+
+    /*
+     * Solo los workflows originados por
+     * una cotización pendiente deben
+     * intentar nuevamente crear el draft.
+     *
+     * Un workflow de aprendizaje comercial
+     * normal NO debe cotizar automáticamente.
+     */
+    retryQuoteDraft?: boolean
   },
 ) {
   const service =
     new AgentOrchestratorService(
-      transactionScope(tx),
+      transactionScope(
+        tx,
+      ),
       {
         tenantId,
       } as never,
@@ -26,7 +48,9 @@ export async function ensureCommercialWait(
       ? await tx.job.findFirstOrThrow({
           where: {
             tenantId,
-            id: input.jobId,
+
+            id:
+              input.jobId,
           },
         })
       : null
@@ -61,6 +85,10 @@ export async function ensureCommercialWait(
 
         authority:
           'REFERENCE_ONLY',
+
+        retryQuoteDraft:
+          input.retryQuoteDraft ===
+          true,
       },
 
       steps: [
@@ -80,17 +108,42 @@ export async function ensureCommercialWait(
             'CHECK_POLICY',
 
           /*
-           * Este handler NO convierte conocimiento
-           * del OWNER en una regla comercial.
+           * Este step únicamente verifica
+           * hechos comerciales persistidos.
            *
-           * Solo vuelve a comprobar si actualmente
-           * existe una configuración ejecutable.
+           * No crea precios ni convierte
+           * CommercialKnowledge en reglas.
            */
           input: {
             handler:
               'COMMERCIAL_RULE_GATE',
           },
         },
+
+        /*
+         * Este tercer step solo existe cuando
+         * el workflow nació de createDraft().
+         *
+         * Queda persistido para poder recuperarse
+         * después de un crash/reinicio.
+         */
+        ...(input.retryQuoteDraft ===
+        true
+          ? [
+              {
+                stepKey:
+                  'retry-quote-draft',
+
+                type:
+                  'CHECK_CONTEXT' as const,
+
+                input: {
+                  handler:
+                    'RETRY_QUOTE_DRAFT',
+                },
+              },
+            ]
+          : []),
       ],
     })
 
@@ -133,8 +186,12 @@ export async function ensureCommercialWait(
 }
 
 export async function ensureQuoteWait(
-  tx: Prisma.TransactionClient,
-  tenantId: string,
+  tx:
+    Prisma.TransactionClient,
+
+  tenantId:
+    string,
+
   input: {
     conversationId: string
     jobId: string
@@ -147,6 +204,15 @@ export async function ensureQuoteWait(
   const correlationKey =
     `quote-wait:${input.jobId}:${input.revision}:${input.status}`
 
+  /*
+   * --------------------------------------------------
+   * CASO 1
+   * --------------------------------------------------
+   *
+   * Falta una regla comercial.
+   *
+   * Esperamos al OWNER.
+   */
   if (
     input.status ===
     'RULE_NOT_CONFIGURED'
@@ -184,6 +250,7 @@ export async function ensureQuoteWait(
         where: {
           tenantId_dedupeKey: {
             tenantId,
+
             dedupeKey:
               correlationKey,
           },
@@ -243,18 +310,42 @@ export async function ensureQuoteWait(
           review.id,
 
         correlationKey,
+
+        /*
+         * IMPORTANTE:
+         *
+         * Este workflow proviene de un intento
+         * real de cotización.
+         *
+         * Cuando el gate quede READY debe existir
+         * un step durable para volver a intentar
+         * createDraft().
+         */
+        retryQuoteDraft:
+          true,
       },
     )
 
     return
   }
 
+  /*
+   * --------------------------------------------------
+   * CASO 2
+   * --------------------------------------------------
+   *
+   * Falta información del cliente.
+   *
+   * Esperamos al CUSTOMER.
+   */
   if (
     input.missingFields.length
   ) {
     const service =
       new AgentOrchestratorService(
-        transactionScope(tx),
+        transactionScope(
+          tx,
+        ),
         {
           tenantId,
         } as never,
@@ -282,6 +373,13 @@ export async function ensureQuoteWait(
         context: {
           jobRevision:
             input.revision,
+
+          /*
+           * Indica que este workflow
+           * nació de createDraft().
+           */
+          retryQuoteDraft:
+            true,
         },
 
         steps: [
@@ -303,6 +401,26 @@ export async function ensureQuoteWait(
             input: {
               handler:
                 'QUOTE_READINESS',
+            },
+          },
+
+          /*
+           * El reintento de cotización queda
+           * persistido como un step independiente.
+           *
+           * Si el servidor se apaga después del
+           * CHECK_POLICY, el worker lo recuperará.
+           */
+          {
+            stepKey:
+              'retry-quote-draft',
+
+            type:
+              'CHECK_CONTEXT',
+
+            input: {
+              handler:
+                'RETRY_QUOTE_DRAFT',
             },
           },
         ],
