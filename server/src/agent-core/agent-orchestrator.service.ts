@@ -6,14 +6,13 @@ import {
 import { Prisma } from '../generated/prisma/client.js'
 import { PrismaService } from '../database/prisma.service.js'
 import { LocalTenantService } from '../common/local-tenant.service.js'
+import { newWaitContext, reevaluateWait, record, waitContext } from './waiting-engine.js'
 import {
   createWorkflowSchema,
-  eventMatchesResumeCondition,
   isTerminalWorkflowState,
   isWaitingWorkflowState,
   waitForSchema,
   workflowStateSchema,
-  type AgentEventType,
 } from './agent-orchestrator.js'
 import {
   deferStoredEvent,
@@ -24,6 +23,11 @@ const json = (
   value: unknown,
 ): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value))
+
+const defaultWaitingActor = {
+  WAITING_CUSTOMER: 'CUSTOMER', WAITING_OWNER: 'OWNER', WAITING_EMPLOYEE: 'EMPLOYEE',
+  WAITING_APPROVAL: 'OWNER', WAITING_TIME: 'SYSTEM', WAITING_EXTERNAL: null,
+} as const
 
 @Injectable()
 export class AgentOrchestratorService {
@@ -403,9 +407,11 @@ export class AgentOrchestratorService {
               state:
                 next,
 
+              contextJson: json({...record(workflow.contextJson), waiting: newWaitContext(`${workflow.id}:${workflow.version + 1}`, new Date(), input.followUp)}),
+
               waitingForActorType:
                 input.actorType ??
-                null,
+                defaultWaitingActor[input.state],
 
               waitingReason:
                 input.reason,
@@ -682,25 +688,7 @@ export class AgentOrchestratorService {
                 return false
               }
 
-              return eventMatchesResumeCondition(
-                workflow.resumeConditionJson,
-                {
-                  type:
-                    event.type as AgentEventType,
-
-                  conversationId:
-                    event.conversationId,
-
-                  jobId:
-                    event.jobId,
-
-                  actorType:
-                    event.actorType,
-
-                  payload:
-                    event.payloadJson,
-                },
-              )
+              return reevaluateWait(workflow, event).kind !== 'NOT_RELATED'
             },
           )
 
@@ -747,26 +735,8 @@ export class AgentOrchestratorService {
           )
         }
 
-        const stillMatches =
-          eventMatchesResumeCondition(
-            workflow.resumeConditionJson,
-            {
-              type:
-                event.type as AgentEventType,
-
-              conversationId:
-                event.conversationId,
-
-              jobId:
-                event.jobId,
-
-              actorType:
-                event.actorType,
-
-              payload:
-                event.payloadJson,
-            },
-          )
+        const evaluation = reevaluateWait(workflow, event)
+        const stillMatches = evaluation.kind !== 'NOT_RELATED'
 
         if (
           !stillMatches
@@ -1048,6 +1018,44 @@ export class AgentOrchestratorService {
           }
         }
 
+        // Partial progress and the event receipt commit together under Event -> Workflow locks.
+        if (context.retryQuoteDraft === true && payload.waitInput === true && event.actorType === 'CUSTOMER' && workflow.jobId &&
+          evaluation.kind !== 'SUPERSEDED' && evaluation.kind !== 'REQUIRES_HUMAN_REVIEW' && evaluation.waiting && Object.keys(evaluation.waiting.values).length) {
+          const job = await tx.job.findFirstOrThrow({where: {id: workflow.jobId, tenantId: this.tenantId}})
+          if (!job.productId) return defer('PRODUCT_NOT_SELECTED', true)
+          // Reuse the existing validation/audit/revision service; never write arbitrary Job facts.
+          const {QuoteWorkflowService} = await import('./quote-workflow.service.js')
+          const {transactionScope} = await import('./transaction-scope.js')
+          const saved = await new QuoteWorkflowService(transactionScope(tx), this.tenant).saveRequirements({
+            jobId: job.id, productId: job.productId, expectedRevision: job.requirementsRevision,
+            requestKey: `wait:${event.id}`, evidence: `Customer wait evidence: ${String(payload.sourceMessageId ?? event.id)}`,
+            values: evaluation.waiting.values,
+          }, {id: job.contactProfileId, role: 'CUSTOMER', contactProfileId: job.contactProfileId})
+          context.jobRevision = saved.requirementsRevision
+        }
+        // A replacement is cancellation of this wait, never permission to quote a new product.
+        if (evaluation.kind !== 'SATISFIED') {
+          const superseded = evaluation.kind === 'SUPERSEDED'
+          if (superseded) {
+            const product = await tx.product.findFirst({where: {tenantId: this.tenantId, id: String(payload.replacementProductId), isActive: true}})
+            if (!product) return defer('REPLACEMENT_PRODUCT_NOT_FOUND', true)
+            await tx.task.updateMany({where: {tenantId: this.tenantId, dedupeKey: {startsWith: `wait-follow-up:${evaluation.waiting?.epoch}:`},
+              status: {in: ['OPEN','IN_PROGRESS']}}, data: {status: 'CANCELLED', completedAt: now}})
+          }
+          await tx.agentWorkflow.update({where: {id: workflow.id}, data: {
+            contextJson: json({...context, waiting: evaluation.waiting}), version: {increment: 1},
+            ...(superseded ? {state: 'CANCELLED', wakeAt: null, waitingReason: 'EXPLICIT_CUSTOMER_REPLACEMENT', completedAt: now} : {}),
+            ...(evaluation.kind === 'REQUIRES_HUMAN_REVIEW' ? {state: 'NEEDS_HUMAN_REVIEW', waitingReason: 'INVALID_WAIT_CONDITION'} : {}),
+          }})
+          await tx.agentEvent.update({where: {id: event.id}, data: {consumedAt: now, lastAttemptAt: now, nextAttemptAt: null,
+            lastProcessingReason: evaluation.kind, processingAttempts: {increment: 1}}})
+          await this.audit(tx, `WAIT_${evaluation.kind}`, workflow.id, {eventId: event.id, missingFields: evaluation.missingFields})
+          return {resumed: false, workflowId: workflow.id, reason: evaluation.kind}
+        }
+        const waiting = evaluation.waiting ?? waitContext(workflow)
+        const resumeCurrentStep = waiting?.resumeCurrentStep === true
+        if (waiting) await tx.task.updateMany({where: {tenantId: this.tenantId, dedupeKey: {startsWith: `wait-follow-up:${waiting.epoch}:`},
+          status: {in: ['OPEN','IN_PROGRESS']}}, data: {status: 'DONE', completedAt: now}})
         const changed =
           await tx.agentWorkflow.updateMany({
             where: {
@@ -1070,8 +1078,10 @@ export class AgentOrchestratorService {
 
               currentStep: {
                 increment:
-                  1,
+                  resumeCurrentStep ? 0 : 1,
               },
+
+              contextJson: json({...context, ...(waiting ? {waiting: {...waiting, status: 'SATISFIED', nextCheckAt: null}} : {})}),
 
               waitingForActorType:
                 null,
@@ -1118,10 +1128,10 @@ export class AgentOrchestratorService {
 
           data: {
             status:
-              'COMPLETED',
+              resumeCurrentStep ? 'PENDING' : 'COMPLETED',
 
             completedAt:
-              new Date(),
+              resumeCurrentStep ? null : now,
           },
         })
 

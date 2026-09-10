@@ -15,9 +15,11 @@ import { AgentOrchestratorService } from './agent-orchestrator.service.js'
 import { AgentEventWorkerService } from './agent-event-worker.service.js'
 import { WorkflowOperationsService } from './workflow-operations.service.js'
 import { WorkflowStepRunnerService } from './workflow-step-runner.service.js'
+import { WaitFollowUpService } from './wait-follow-up.service.js'
 
 @Module({
   providers: [
+    WaitFollowUpService,
     WorkflowStepRunnerService,
     WorkflowOperationsService,
     AgentOrchestratorService,
@@ -37,6 +39,7 @@ import { WorkflowStepRunnerService } from './workflow-step-runner.service.js'
   ],
 
   exports: [
+    WaitFollowUpService,
     WorkflowStepRunnerService,
     WorkflowOperationsService,
     AgentOrchestratorService,

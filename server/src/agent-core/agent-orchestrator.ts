@@ -126,6 +126,12 @@ export const waitForSchema = z.object({
   }).strict(),
 
   wakeAt: z.coerce.date().optional(),
+  followUp: z.object({
+    firstDelayMs: z.number().int().min(60_000).max(30 * 86400_000).default(86400_000),
+    secondDelayMs: z.number().int().min(60_000).max(30 * 86400_000).default(2 * 86400_000),
+    backoff: z.number().min(1).max(10).default(2),
+    maxFollowUps: z.number().int().min(0).max(10).default(2),
+  }).strict().optional(),
 }).strict().superRefine((value, ctx) => {
   if (value.state === 'WAITING_TIME' && !value.wakeAt) {
     ctx.addIssue({

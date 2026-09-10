@@ -163,6 +163,8 @@ export async function ensureCommercialWait(
         reason:
           'COMMERCIAL_KNOWLEDGE_REQUIRED',
 
+        followUp: {},
+
         resumeCondition: {
           eventTypes: [
             'COMMERCIAL_KNOWLEDGE_VERIFIED',
@@ -442,6 +444,8 @@ export async function ensureQuoteWait(
           reason:
             'MISSING_REQUIREMENT',
 
+          followUp: {},
+
           resumeCondition: {
             jobId:
               input.jobId,
@@ -454,11 +458,7 @@ export async function ensureQuoteWait(
               'JOB_REQUIREMENTS_UPDATED',
             ],
 
-            requiredFields:
-              input.missingFields.slice(
-                0,
-                1,
-              ),
+            requiredFields: input.missingFields,
           },
         },
       )

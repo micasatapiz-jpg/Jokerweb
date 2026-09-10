@@ -5,6 +5,7 @@ import {LocalTenantService} from '../common/local-tenant.service.js'
 import type {Prisma} from '../generated/prisma/client.js'
 import {OperatorControlsService} from './operator-controls.service.js'
 import {emitStoredEvent} from './agent-event-store.js'
+import {newWaitContext,waitContext} from './waiting-engine.js'
 
 export async function interruptWorkflows(tx:Prisma.TransactionClient,tenantId:string,conversationId:string,reason:string,sourceId:string) {
   const rows=await tx.agentWorkflow.findMany({where:{tenantId,conversationId,state:{notIn:['COMPLETED','CANCELLED','FAILED','NEEDS_HUMAN_REVIEW']}},orderBy:{id:'asc'}})
@@ -52,7 +53,8 @@ export class WorkflowOperationsService {
       if(['COMPLETED','FAILED','CANCELLED'].includes(w.state))throw new ConflictException('Workflow terminado.')
       const job=w.jobId?await tx.job.findFirstOrThrow({where:{id:w.jobId,tenantId}}):null
       await tx.agentWorkflow.update({where:{id:w.id},data:{state:'WAITING_OWNER',waitingForActorType:'OWNER',waitingReason:'MANUAL_RESUME_AUTHORIZED',
-        contextJson:{...(w.contextJson as object),jobRevision:job?.requirementsRevision??null,previousResumeCondition:w.resumeConditionJson},
+        contextJson:{...(w.contextJson as object),jobRevision:job?.requirementsRevision??null,previousResumeCondition:w.resumeConditionJson,
+          waiting:newWaitContext(`manual:${sourceId}`,new Date(),undefined,waitContext(w)?.status==='SATISFIED'||waitContext(w)?.resumeCurrentStep===true)},
         resumeConditionJson:{eventTypes:['MANUAL_RESUME'],actorType:'OWNER',...(w.jobId?{jobId:w.jobId}:{})},version:{increment:1}}})
       if(w.conversationId)await tx.conversation.update({where:{id:w.conversationId},data:{automationMode:'AUTO',status:'COLLECTING'}})
       const event=await emitStoredEvent(tx,tenantId,{workflowId:w.id,jobId:w.jobId??undefined,conversationId:w.conversationId??undefined,actorType:'OWNER',type:'MANUAL_RESUME',sourceKey,payload:{actorId:actor.id,sourceMessageId:sourceId}})

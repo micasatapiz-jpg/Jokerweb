@@ -30,11 +30,11 @@ export class DeterministicUnderstanding implements UnderstandingInterpreter {
     const entities=new Map<string,string|number|boolean|null>()
     for(const [index,m] of turn.messages.entries()) {
       const t=normal(m.text??'')
-      const relation=/^(no[, ]|corrijo|mejor)/.test(t)?'CORRECT':/^(o ?sea|es decir)/.test(t)?'CLARIFY':/^(en vez|cambialo)/.test(t)?'REPLACE':/^(cancela|ya no quiero)/.test(t)?'CANCEL':/^(si|confirmo|correcto)[,. ]*$/.test(t)?'CONFIRM':'ADD'
+      const relation=/^(no[, ]|corrijo|mejor)/.test(t)?'CORRECT':/^(o ?sea|es decir)/.test(t)?'CLARIFY':/^(en vez|cambialo|olvida (?:la foto|eso|lo anterior))/.test(t)?'REPLACE':/^(cancela|ya no quiero)/.test(t)?'CANCEL':/^(si|confirmo|correcto)[,. ]*$/.test(t)?'CONFIRM':'ADD'
       result.messageRelations.push({ messageId:m.id,relatedToMessageId:index?turn.messages[index-1]!.id:null,relation })
       if(relation==='CANCEL') { result.primaryGoal='CANCELLATION'; entities.clear() }
       const q=/(?:quiero|mejor|cantidad[:=]?|son)\s+(\d+)\b/.exec(t)
-      if(q) entities.set('quantity',Number(q[1]))
+      if(q && !/^[.,x]|^\s*x/.test(t.slice(q.index + q[0].length))) entities.set('quantity',Number(q[1]))
       const dims=/(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)/.exec(t)
       if(dims) {
         const label=/^\s*(mm|milimetros?|cm|centimetros?|m|metros?)\b/.exec(t.slice(dims.index+dims[0].length))?.[1]

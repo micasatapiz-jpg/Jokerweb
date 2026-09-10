@@ -12,6 +12,7 @@ import {
 import {
   LocalTenantService,
 } from '../common/local-tenant.service.js'
+import { newWaitContext, record, waitContext } from './waiting-engine.js'
 import {
   productConfigurationSchema,
   configurationIsCurrent,
@@ -785,6 +786,25 @@ export class WorkflowStepRunnerService {
       evaluation.status ===
       'MISSING_DATA'
     ) {
+      if (handler === 'QUOTE_READINESS') {
+        const current = await tx.agentWorkflow.findFirstOrThrow({where: {id: workflow.id, tenantId}})
+        const prior = waitContext(current)
+        const waiting = newWaitContext(`${current.id}:${current.version + 1}`, new Date(), prior?.policy, true)
+        // Incompleteness is not a technical failure. Preserve attempts and reminder budget.
+        waiting.followUpCount = prior?.followUpCount ?? 0
+        if (waiting.followUpCount >= waiting.policy.maxFollowUps) waiting.nextCheckAt = null
+        await tx.agentWorkflow.update({where: {id: current.id}, data: {
+          state: 'WAITING_CUSTOMER', waitingForActorType: 'CUSTOMER', waitingReason: 'MISSING_REQUIREMENT',
+          contextJson: json({...record(current.contextJson), jobRevision: job.requirementsRevision, waiting}),
+          resumeConditionJson: {eventTypes: ['CUSTOMER_MESSAGE_RECEIVED', 'JOB_REQUIREMENTS_UPDATED'], actorType: 'CUSTOMER',
+            jobId: job.id, ...(current.conversationId ? {conversationId: current.conversationId} : {}), requiredFields: evaluation.missingFields},
+          version: {increment: 1},
+        }})
+        const result = {checked: false, handler, missingFields: evaluation.missingFields, authority: 'NO_COMMERCIAL_AUTHORIZATION'}
+        await tx.agentWorkflowStep.update({where: {id: step.id}, data: {status: 'WAITING', resultJson: json(result)}})
+        await tx.auditLog.create({data: {tenantId, entityType: 'AgentWorkflow', entityId: current.id, action: 'WAIT_CUSTOMER_REQUIREMENTS', details: json(result)}})
+        return {status: 'WAITING_CUSTOMER' as const, result}
+      }
       return this.requireHumanReview(
         tx,
         {
@@ -2167,8 +2187,7 @@ export class WorkflowStepRunnerService {
               )
 
             if (
-              policy.status ===
-              'NEEDS_HUMAN_REVIEW'
+              policy.status === 'NEEDS_HUMAN_REVIEW' || policy.status === 'WAITING_CUSTOMER'
             ) {
               return policy
             }

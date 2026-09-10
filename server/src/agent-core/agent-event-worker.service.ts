@@ -9,6 +9,7 @@ import { LocalTenantService } from '../common/local-tenant.service.js'
 import { AgentOrchestratorService } from './agent-orchestrator.service.js'
 import { WorkflowStepRunnerService } from './workflow-step-runner.service.js'
 import { deferStoredEvent } from './agent-event-store.js'
+import { WaitFollowUpService } from './wait-follow-up.service.js'
 
 const WORKER_INTERVAL_MS =
   2_000
@@ -701,6 +702,11 @@ export class AgentEventWorkerService
           break
         }
 
+        if (result.status === 'WAITING_CUSTOMER') {
+          reason = 'WAITING_CUSTOMER'
+          break
+        }
+
         /*
          * Fail closed para cualquier estado
          * futuro que todavía no entendamos.
@@ -953,6 +959,8 @@ export class AgentEventWorkerService
         await processor.processRunnableWorkflows(
           100,
         )
+
+      await new WaitFollowUpService(this.db, scope).processDue(now)
 
       timers.due +=
         timerResult.due
