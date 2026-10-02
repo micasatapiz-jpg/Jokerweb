@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { salesApi } from '../services/salesApi'
 import { createWhatsAppLink } from '../config/siteConfig'
 
