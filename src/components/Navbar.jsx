@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
+import WhatsAppButton from './WhatsAppButton'
 
 const links = [
   { to: '/', label: 'Inicio' },
@@ -53,7 +54,12 @@ function Navbar() {
           </ul>
         </nav>
 
-        <Link className="whatsapp-button navbar__quote" to="/cotizar" onClick={cerrarMenu}>Cotizar</Link>
+        <WhatsAppButton
+          servicio="general"
+          origen="navbar"
+          texto="Cotizar"
+          className="navbar__quote"
+        />
       </div>
     </header>
   )
