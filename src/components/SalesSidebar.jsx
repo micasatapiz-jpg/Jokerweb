@@ -7,7 +7,7 @@ function SalesSidebar() {
       <nav aria-label="Panel de ventas">
         <NavLink to="/app" end className={({ isActive }) => (isActive ? 'is-active' : '')}>Cotizaciones</NavLink>
         <NavLink to="/app/precios" className={({ isActive }) => (isActive ? 'is-active' : '')}>Productos y precios</NavLink>
-        <Link to="/cotizar">Nueva cotización</Link>
+        <Link to="/app/cotizaciones/nueva">Nueva cotización</Link>
       </nav>
       <p>Sistema local · Huancayo</p>
     </aside>
