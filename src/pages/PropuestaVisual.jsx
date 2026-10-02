@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { salesApi } from '../services/salesApi'
+import { createWhatsAppLink } from '../config/siteConfig'
 
 const acceptedTypes = ['image/png', 'image/jpeg', 'image/webp']
 
@@ -38,6 +39,11 @@ function PropuestaVisual() {
   const [resultUrl, setResultUrl] = useState('')
   const [busy, setBusy] = useState('')
   const [notice, setNotice] = useState(null)
+  const quoteWhatsAppLink = createWhatsAppLink({
+    message: description.trim()
+      ? `Hola, vengo desde la web de Joker. Quisiera continuar mi cotización con esta idea: ${description.trim()}`
+      : 'Hola, vengo desde la web de Joker. Quisiera solicitar una cotización para un proyecto publicitario.',
+  })
 
   const analyze = async (event) => {
     event.preventDefault()
@@ -127,7 +133,7 @@ function PropuestaVisual() {
 
       {!proposal && (
         <form className="sales-card visual-start" onSubmit={analyze}>
-          <div className="sales-card__heading"><div><span>Paso 1</span><h2>Logo e idea del cliente</h2></div><Link className="sales-text-button" to="/cotizar">Volver a cotizar</Link></div>
+          <div className="sales-card__heading"><div><span>Paso 1</span><h2>Logo e idea del cliente</h2></div><a className="sales-text-button" href={quoteWhatsAppLink} target="_blank" rel="noreferrer">Cotizar por WhatsApp</a></div>
           <div className="visual-start__grid">
             <ImagePicker id="logo-file" label="Seleccionar logo" hint="PNG, JPG o WebP · máximo 10 MB" file={logo} onChange={setLogo} />
             <div className="visual-description">
@@ -178,7 +184,7 @@ function PropuestaVisual() {
         <section className="sales-card visual-result">
           <div className="sales-card__heading"><div><span>Paso 3</span><h2>Propuesta lista</h2></div><button className="sales-text-button" type="button" onClick={() => setResultUrl('')}>Hacer ajustes</button></div>
           <figure><img src={resultUrl} alt="Propuesta visual generada para el letrero" /><figcaption>Vista conceptual generada con IA. No reemplaza un plano técnico ni confirma medidas finales.</figcaption></figure>
-          <div className="sales-actions"><a className="sales-button sales-button--secondary" href={resultUrl} download={`propuesta-${proposal.id}.png`}>Descargar imagen</a><Link className="sales-button" to="/cotizar" state={{ description }}>Continuar cotización</Link></div>
+          <div className="sales-actions"><a className="sales-button sales-button--secondary" href={resultUrl} download={`propuesta-${proposal.id}.png`}>Descargar imagen</a><a className="sales-button" href={quoteWhatsAppLink} target="_blank" rel="noreferrer">Continuar por WhatsApp</a></div>
         </section>
       )}
     </section>

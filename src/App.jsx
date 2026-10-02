@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Footer from './components/Footer'
 import Navbar from './components/Navbar'
 import WhatsAppButton from './components/WhatsAppButton'
@@ -42,9 +42,10 @@ function App() {
           <Route path="/servicios/:familia" element={<ProductosFamilia />} />
           <Route path="/nosotros" element={<Nosotros />} />
           <Route path="/contacto" element={<Contacto />} />
-          <Route path="/cotizar" element={<Cotizar />} />
+          <Route path="/cotizar" element={<Navigate to="/" replace />} />
           <Route path="/propuesta-visual" element={<PropuestaVisual />} />
           <Route path="/app" element={<PanelCotizaciones />} />
+          <Route path="/app/cotizaciones/nueva" element={<Cotizar />} />
           <Route path="/app/precios" element={<ConfigurarPrecios />} />
           <Route path="/app/cotizaciones/:id" element={<DetalleCotizacion />} />
           <Route path="/politica-privacidad" element={<PoliticaPrivacidad />} />

@@ -22,7 +22,7 @@ export const productFamilies = {
     eyebrow: 'Letras corpóreas 3D',
     title: 'Volumen que convierte un nombre en presencia.',
     description: 'Fabricamos letras con cuerpo, textura y luz para interiores, fachadas y espacios comerciales.',
-    message: 'Hola Joker 👋 Quisiera cotizar letras corpóreas 3D.',
+    message: 'Hola, vengo desde la web de Joker. Quisiera cotizar letras corpóreas 3D. Puedo enviar medidas aproximadas, cantidad y una referencia del acabado que busco.',
     products: [
       ['Acrílico', 'Frentes brillantes o translúcidos con cantos pulidos y una presencia contemporánea.', 'letras-3d/acrilico-photo-v1.webp', '#ef445f', '#5536b8'],
       ['PVC', 'Letras ligeras, precisas y versátiles para aplicaciones interiores o exteriores.', 'letras-3d/pvc-photo-v1.webp', '#2468ff', '#58b7ff'],
@@ -37,7 +37,7 @@ export const productFamilies = {
     eyebrow: 'Gigantografías y banners',
     title: 'Ideas grandes, impresas para dominar el espacio.',
     description: 'Producimos gráficas de gran formato con color, definición y soportes adecuados para cada campaña.',
-    message: 'Hola Joker 👋 Quisiera cotizar una impresión en gran formato.',
+    message: 'Hola, vengo desde la web de Joker. Quisiera cotizar una impresión en gran formato. Puedo enviar medidas, cantidad y el archivo o diseño.',
     products: [
       ['Banners', 'Formatos enrollables y portátiles para comunicar con rapidez en cualquier espacio.', 'gran-formato/banners-photo-v1.webp', '#ff664a', '#202f6b'],
       ['Gigantografías', 'Impresión de gran impacto para superficies extensas y alta exposición.', 'gran-formato/gigantografias-photo-v1.webp', '#ff8f25', '#005bbf'],
@@ -52,7 +52,7 @@ export const productFamilies = {
     eyebrow: 'Viniles publicitarios',
     title: 'Cada superficie puede contar la historia de tu marca.',
     description: 'Imprimimos, cortamos y aplicamos viniles para vitrinas, muros, vehículos y comunicación comercial.',
-    message: 'Hola Joker 👋 Quisiera cotizar un trabajo en vinil publicitario.',
+    message: 'Hola, vengo desde la web de Joker. Quisiera cotizar un trabajo en vinil publicitario. Puedo enviar medidas, fotos del lugar y una referencia.',
     products: [
       ['Adhesivo', 'Color intenso y adherencia confiable para múltiples superficies lisas.', 'viniles/adhesivo-photo-v1.webp', '#f1c928', '#e74438'],
       ['Microperforado', 'Comunicación visible desde fuera que conserva visibilidad desde el interior.', 'viniles/microperforado-photo-v1.webp', '#a13cf2', '#ff7427'],
@@ -67,7 +67,7 @@ export const productFamilies = {
     eyebrow: 'Señalética',
     title: 'Orientar también es construir una buena experiencia.',
     description: 'Creamos sistemas claros, resistentes y coherentes con la identidad de cada espacio.',
-    message: 'Hola Joker 👋 Quisiera cotizar un proyecto de señalética.',
+    message: 'Hola, vengo desde la web de Joker. Quisiera cotizar un proyecto de señalética. Puedo enviar medidas, cantidad y fotos o referencias.',
     products: [
       ['Comercial', 'Dirección y comunicación visual para tiendas, centros comerciales y atención al público.', 'senaletica/comercial-photo-v1.webp', '#df6453', '#166751'],
       ['Corporativa', 'Sistemas sobrios y consistentes para oficinas, instituciones y empresas.', 'senaletica/corporativa-photo-v1.webp', '#ad7d4f', '#51473e'],
@@ -81,7 +81,7 @@ export const productFamilies = {
     eyebrow: 'Publicidad para eventos',
     title: 'Una puesta en escena que hace recordar tu marca.',
     description: 'Diseñamos y producimos elementos transportables para ferias, activaciones y presentaciones.',
-    message: 'Hola Joker 👋 Quisiera cotizar publicidad para un evento.',
+    message: 'Hola, vengo desde la web de Joker. Quisiera cotizar piezas publicitarias para un evento. Puedo enviar medidas, cantidades y la fecha del evento.',
     products: [
       ['Roll screen', 'Exhibidor portátil, rápido de montar y listo para acompañar cada presentación.', 'eventos/roll-screen-photo-v1.webp', '#11bdd5', '#7738e9'],
       ['Backing', 'Fondos amplios y continuos para fotografías, escenarios y activaciones.', 'eventos/backing-photo-v1.webp', '#9d3154', '#e5ae8a'],
