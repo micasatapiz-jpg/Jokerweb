@@ -24,15 +24,15 @@ export const siteConfig = {
 }
 
 export const whatsappMessages = {
-  general: 'Hola Joker 👋 Vi su web y quisiera cotizar un proyecto publicitario.',
-  letreros: 'Hola Joker 👋 Quisiera cotizar un letrero para mi negocio.',
-  letras3d: 'Hola Joker 👋 Quisiera cotizar letras corpóreas 3D.',
-  granFormato: 'Hola Joker 👋 Quisiera cotizar una impresión en gran formato.',
-  viniles: 'Hola Joker 👋 Quisiera cotizar un trabajo en vinil publicitario.',
-  senaletica: 'Hola Joker 👋 Quisiera cotizar un proyecto de señalética.',
-  eventos: 'Hola Joker 👋 Quisiera cotizar publicidad para un evento.',
-  empresarial: 'Hola Joker 👋 Quisiera cotizar un proyecto publicitario para mi empresa.',
-  especial: 'Hola Joker 👋 Tengo una idea para un proyecto publicitario y quisiera conversar con ustedes.',
+  general: 'Hola, vengo desde la web de Joker. Quisiera cotizar un proyecto publicitario. ¿Qué datos necesitan para poder orientarme?',
+  letreros: 'Hola, vengo desde la web de Joker. Quisiera cotizar un letrero para mi negocio. Puedo enviar una foto del lugar, medidas aproximadas y una referencia del estilo que busco.',
+  letras3d: 'Hola, vengo desde la web de Joker. Quisiera cotizar letras corpóreas 3D. Puedo enviar medidas aproximadas, cantidad y una referencia del acabado que busco.',
+  granFormato: 'Hola, vengo desde la web de Joker. Quisiera cotizar una impresión en gran formato. Puedo enviar medidas, cantidad y el archivo o diseño.',
+  viniles: 'Hola, vengo desde la web de Joker. Quisiera cotizar un trabajo en vinil publicitario. Puedo enviar medidas, fotos del lugar y una referencia.',
+  senaletica: 'Hola, vengo desde la web de Joker. Quisiera cotizar un proyecto de señalética. Puedo enviar medidas, cantidad y fotos o referencias.',
+  eventos: 'Hola, vengo desde la web de Joker. Quisiera cotizar piezas publicitarias para un evento. Puedo enviar medidas, cantidades y la fecha del evento.',
+  empresarial: 'Hola, vengo desde la web de Joker. Quisiera cotizar un proyecto publicitario para mi empresa. Me gustaría que me orienten con la mejor opción.',
+  especial: 'Hola, vengo desde la web de Joker. Tengo una idea para un proyecto publicitario. Puedo enviar fotos, medidas aproximadas y una referencia para que me orienten.',
 }
 
 export const serviceFamilies = [
