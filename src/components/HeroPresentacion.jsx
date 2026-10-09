@@ -5,6 +5,7 @@ import backgroundScroll from '../assets/home/background-scroll-illustrated.png'
 import { serviceFamilies, siteConfig } from '../config/siteConfig'
 import ImageSequenceViewer from './ImageSequenceViewer'
 import WhatsAppButton from './WhatsAppButton'
+import sequenceBundles from '../config/sequenceBundles.json'
 
 const secuenciasMascota = [
   { ruta: '/secuencias/joker/clip-01', cantidad: 480, extension: 'webp', version: 'hq-3' },
@@ -94,6 +95,7 @@ function HeroPresentacion() {
     <section ref={raizRef} className="hero-presentacion hero-presentacion--unified" aria-labelledby="hero-title">
       <ImageSequenceViewer
         secuencias={secuenciasMascota}
+        framePacks={sequenceBundles}
         modo="scroll"
         alturaScroll={1500}
         sceneCount={PANEL_COUNT}

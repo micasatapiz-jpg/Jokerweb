@@ -1,0 +1,204 @@
+{
+  "sourceBranch": "inicio-scroll-unificado",
+  "sourceCommit": "54387c7b571703000b74fd7d3051d09601e6f79a",
+  "desktop": [
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-001-ce33e99e53849ffd.bin",
+      "start": 0,
+      "count": 64,
+      "bytes": 3507114,
+      "sourceSha256": "b71326d27c04a1210be566d425259d6640cd2bcf41fa5fd717d4fcaca0039b05"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-065-25a369415342c418.bin",
+      "start": 64,
+      "count": 64,
+      "bytes": 3786686,
+      "sourceSha256": "e07b1d350cc8c4fceb95635d9af6f944876f21c1a2d241e5050af76ff9f39bf1"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-129-4efe1022898cbae0.bin",
+      "start": 128,
+      "count": 64,
+      "bytes": 3756846,
+      "sourceSha256": "3077e919ef78229ae1cf1f0b6d5a11d39d8fb9ac6f7f8d5b5451cf8d8452b5a5"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-193-bceb0389b216bce9.bin",
+      "start": 192,
+      "count": 64,
+      "bytes": 4053228,
+      "sourceSha256": "edfa60728af512004c9d910a9d72594196fd3ed767a69aa9d633797dc78281b7"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-257-5f41de0e186c2865.bin",
+      "start": 256,
+      "count": 64,
+      "bytes": 4686854,
+      "sourceSha256": "5e465702fab66d0bdd0e821f633071545dc85d9ef1d4413521acc498bfbc4a93"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-321-0928f9cbd7d55bf6.bin",
+      "start": 320,
+      "count": 64,
+      "bytes": 5215606,
+      "sourceSha256": "38ed90a6b1b8f87b1239e338eed52ac43448f601958e4e7fa94dfe9906058e9f"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-385-98db1cf924b76fc4.bin",
+      "start": 384,
+      "count": 64,
+      "bytes": 4484288,
+      "sourceSha256": "b97a74a8d54c2d80fb8515244f4dd2f40a0b9b0314cc3fabae7a2f9beca27eea"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-01-449-ed66d18e295a6976.bin",
+      "start": 448,
+      "count": 32,
+      "bytes": 1141712,
+      "sourceSha256": "50550d042f579d8d516e37bb12c1d5abdf61e042485033fe2d696137b16b600f"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-02-001-57e074233f839298.bin",
+      "start": 480,
+      "count": 64,
+      "bytes": 5831674,
+      "sourceSha256": "f7360a4bb391f56442d87960d546f97ea45cf98e1d80714681f779782699b6b4"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-02-065-f60bea5d56352130.bin",
+      "start": 544,
+      "count": 64,
+      "bytes": 4925194,
+      "sourceSha256": "9024cd6b2005c8c213489b62210c22954a3f1f15020dc695c766d6181637720c"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-02-129-08362e4a99ba469d.bin",
+      "start": 608,
+      "count": 64,
+      "bytes": 4856672,
+      "sourceSha256": "890f5d0315b957b6a5d9b7a55926779bbd5cb5c43625f87fdf67c4daa85c0256"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-03-001-5b463c2e9537a351.bin",
+      "start": 672,
+      "count": 64,
+      "bytes": 5147440,
+      "sourceSha256": "3695c6f647a737fdeb5447f79f30b3c8146c554abcc0a358864f4fc49a8d3ded"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-03-065-66052655b7eb3f57.bin",
+      "start": 736,
+      "count": 64,
+      "bytes": 4819588,
+      "sourceSha256": "2cbb7904a91ba9d6abd5091e0b92f69fe91a7c3e9c6f8c77f1f0ff153b29b694"
+    },
+    {
+      "url": "/secuencias/joker/packed/desktop/clip-03-129-64c86f40fbfa3f4b.bin",
+      "start": 800,
+      "count": 64,
+      "bytes": 5004772,
+      "sourceSha256": "c8d06d7c61f43b8f03fb7607ee67f4924d53c5c735b1ba9ba7414552513fd8a9"
+    }
+  ],
+  "mobile": [
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-001-ac447677b25116e8.bin",
+      "start": 0,
+      "count": 64,
+      "bytes": 1470208,
+      "sourceSha256": "b71326d27c04a1210be566d425259d6640cd2bcf41fa5fd717d4fcaca0039b05"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-065-b25138f08163ce4d.bin",
+      "start": 64,
+      "count": 64,
+      "bytes": 1339428,
+      "sourceSha256": "e07b1d350cc8c4fceb95635d9af6f944876f21c1a2d241e5050af76ff9f39bf1"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-129-7de84ee45bd83813.bin",
+      "start": 128,
+      "count": 64,
+      "bytes": 1590634,
+      "sourceSha256": "3077e919ef78229ae1cf1f0b6d5a11d39d8fb9ac6f7f8d5b5451cf8d8452b5a5"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-193-4da6a2d815cf6563.bin",
+      "start": 192,
+      "count": 64,
+      "bytes": 1846704,
+      "sourceSha256": "edfa60728af512004c9d910a9d72594196fd3ed767a69aa9d633797dc78281b7"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-257-898f196195be9bc6.bin",
+      "start": 256,
+      "count": 64,
+      "bytes": 2681786,
+      "sourceSha256": "5e465702fab66d0bdd0e821f633071545dc85d9ef1d4413521acc498bfbc4a93"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-321-81a7f85df794c64e.bin",
+      "start": 320,
+      "count": 64,
+      "bytes": 3317696,
+      "sourceSha256": "38ed90a6b1b8f87b1239e338eed52ac43448f601958e4e7fa94dfe9906058e9f"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-385-dc41dfa5bb44ebac.bin",
+      "start": 384,
+      "count": 64,
+      "bytes": 2655718,
+      "sourceSha256": "b97a74a8d54c2d80fb8515244f4dd2f40a0b9b0314cc3fabae7a2f9beca27eea"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-01-449-b20550a5b6a48817.bin",
+      "start": 448,
+      "count": 32,
+      "bytes": 564816,
+      "sourceSha256": "50550d042f579d8d516e37bb12c1d5abdf61e042485033fe2d696137b16b600f"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-02-001-214e61f442efd937.bin",
+      "start": 480,
+      "count": 64,
+      "bytes": 4145530,
+      "sourceSha256": "f7360a4bb391f56442d87960d546f97ea45cf98e1d80714681f779782699b6b4"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-02-065-13759dc095b928df.bin",
+      "start": 544,
+      "count": 64,
+      "bytes": 3790996,
+      "sourceSha256": "9024cd6b2005c8c213489b62210c22954a3f1f15020dc695c766d6181637720c"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-02-129-b639149e2ef616da.bin",
+      "start": 608,
+      "count": 64,
+      "bytes": 3466432,
+      "sourceSha256": "890f5d0315b957b6a5d9b7a55926779bbd5cb5c43625f87fdf67c4daa85c0256"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-03-001-6e1acd5fb5d43c77.bin",
+      "start": 672,
+      "count": 64,
+      "bytes": 3795074,
+      "sourceSha256": "3695c6f647a737fdeb5447f79f30b3c8146c554abcc0a358864f4fc49a8d3ded"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-03-065-ba2a0f674f08d579.bin",
+      "start": 736,
+      "count": 64,
+      "bytes": 3508460,
+      "sourceSha256": "2cbb7904a91ba9d6abd5091e0b92f69fe91a7c3e9c6f8c77f1f0ff153b29b694"
+    },
+    {
+      "url": "/secuencias/joker/packed/mobile/clip-03-129-4caf1d79f7f8a1b3.bin",
+      "start": 800,
+      "count": 64,
+      "bytes": 3509582,
+      "sourceSha256": "c8d06d7c61f43b8f03fb7607ee67f4924d53c5c735b1ba9ba7414552513fd8a9"
+    }
+  ]
+}

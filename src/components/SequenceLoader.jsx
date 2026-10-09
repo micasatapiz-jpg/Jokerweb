@@ -6,7 +6,7 @@ import { gsap } from 'gsap'
 const DURACION_TOTAL_MS = 3000
 const DURACION_SALIDA = .3
 
-export default function SequenceLoader({ ready, onComplete }) {
+export default function SequenceLoader({ ready, onComplete, progress, error, onRetry, minDurationMs = DURACION_TOTAL_MS }) {
   const root = useRef(null)
   const inicioRef = useRef(0)
 
@@ -25,7 +25,7 @@ export default function SequenceLoader({ ready, onComplete }) {
 
       const transcurrido = performance.now() - inicioRef.current
       const espera = Math.max(
-        DURACION_TOTAL_MS - transcurrido - DURACION_SALIDA * 1000,
+        minDurationMs - transcurrido - DURACION_SALIDA * 1000,
         0,
       ) / 1000
       gsap.to(root.current, {
@@ -37,7 +37,7 @@ export default function SequenceLoader({ ready, onComplete }) {
       })
     }, root)
     return () => context.revert()
-  }, [ready, onComplete])
+  }, [ready, onComplete, minDurationMs])
 
   return (
     <div ref={root} className="image-sequence__loading" role="status" aria-label="Preparando la experiencia de Joker">
@@ -51,6 +51,16 @@ export default function SequenceLoader({ ready, onComplete }) {
           color="var(--joker-turquoise)"
         />
       </div>
+      {error ? (
+        <div className="image-sequence__loading-message" role="alert">
+          <p>No pudimos cargar la animación.</p>
+          <button type="button" onClick={onRetry}>Reintentar</button>
+        </div>
+      ) : progress !== undefined && (
+        <span className="image-sequence__loading-message">
+          Preparando animación {Math.round(progress * 100)}%
+        </span>
+      )}
     </div>
   )
 }

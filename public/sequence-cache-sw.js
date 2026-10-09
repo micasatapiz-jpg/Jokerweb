@@ -19,6 +19,9 @@ self.addEventListener('fetch', (event) => {
     request.method !== 'GET'
     || url.origin !== self.location.origin
     || !url.pathname.startsWith('/secuencias/joker/')
+    // Packed bytes are versioned and persisted by framePacks.js. Keep this
+    // legacy worker for individual stills without a second cache lookup path.
+    || url.pathname.startsWith('/secuencias/joker/packed/')
   ) return
 
   event.respondWith(

@@ -95,6 +95,8 @@ main {
 .image-sequence__loading::before { position: absolute; inset: 0; background: radial-gradient(circle at 50% 48%, rgb(78 216 196 / 10%), transparent 38%); content: ''; pointer-events: none; }
 .image-sequence__loading-mark { position: relative; display: flex; align-items: center; flex-direction: column; gap: clamp(1.4rem, 4vw, 2.4rem); }
 .image-sequence__loading-mark strong { color: var(--joker-gold); font-size: clamp(4.2rem, 12vw, 9rem); font-weight: 950; line-height: .78; letter-spacing: -.08em; text-shadow: 0 1.2rem 3rem rgb(0 0 0 / 32%); }
+.image-sequence__loading-message { position: absolute; right: 1.5rem; bottom: 22%; left: 1.5rem; text-align: center; font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
+.image-sequence__loading-message button { padding: .7rem 1.2rem; border: 1px solid var(--joker-turquoise); border-radius: 999px; color: var(--joker-white); background: transparent; cursor: pointer; font: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .image-sequence__loading *, .image-sequence__loading *::before, .image-sequence__loading *::after { animation: none !important; transition: none !important; }
 }

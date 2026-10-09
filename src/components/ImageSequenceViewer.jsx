@@ -11,13 +11,10 @@ import {
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import SequenceLoader from './SequenceLoader'
-import { CACHE_NAME, isInitialSequenceCached, storeSequence } from '../utils/sequenceCache'
+import { SequenceFrameStore } from '../services/sequenceFrameStore'
+import { areFramePacksCached } from '../utils/framePacks'
 
-const LIMITE_CACHE = 72
-const RADIO_PRECARGA = 24
-const CONCURRENCIA_PRECARGA = 6
-const FRAMES_INICIO_CRITICOS = 72
-const MAX_ESPERA_INICIAL_MS = 2700
+const CONSULTA_MOVIL = '(max-width: 900px) and (max-aspect-ratio: 3/4)'
 
 function limitar(valor, minimo, maximo) {
   return Math.min(Math.max(valor, minimo), maximo)
@@ -31,6 +28,7 @@ function rutaFrame(ruta, numero, digitos = 3, extension = 'webp', version = '') 
 const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   {
     secuencias = [],
+    framePacks,
     modo = 'scroll',
     alturaScroll,
     sceneCount,
@@ -49,6 +47,18 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   const callbackProgresoRef = useRef(onProgress)
   const [listo, setListo] = useState(false)
   const [mostrarCarga, setMostrarCarga] = useState(false)
+  const [preparados, setPreparados] = useState(0)
+  const [errorCarga, setErrorCarga] = useState(false)
+  const [warmStart, setWarmStart] = useState(false)
+  const [usarFramesMoviles, setUsarFramesMoviles] = useState(() => window.matchMedia(CONSULTA_MOVIL).matches)
+  const paquetes = framePacks?.[usarFramesMoviles ? 'mobile' : 'desktop']
+
+  useEffect(() => {
+    const consulta = window.matchMedia(CONSULTA_MOVIL)
+    const actualizarVariante = () => setUsarFramesMoviles(consulta.matches)
+    consulta.addEventListener('change', actualizarVariante)
+    return () => consulta.removeEventListener('change', actualizarVariante)
+  }, [])
   const ocultarCarga = useCallback(() => setMostrarCarga(false), [])
 
   const clips = useMemo(() => secuencias.map((secuencia, indice) => ({
@@ -99,33 +109,30 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     }
 
     let vivo = true
-    const cache = new Map()
-    const pendientes = new Map()
-    let decoding = 0
-    const decodeQueue = []
-    const indicesProtegidos = new Set([
-      0,
-      frames.length - 1,
-      ...clips.flatMap((clip) => [clip.inicio, clip.inicio + clip.cantidad - 1]),
-    ])
+    const almacen = new SequenceFrameStore(frames)
     const contextoCanvas = canvas.getContext('2d', { alpha: false })
+    let ready = false
+    let progresoActual = 0
+    let ultimoDibujado = -1
+    let dibujoPendiente = 0
+    const movimientoReducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     setListo(false)
-    setMostrarCarga(false)
-    let ready = false
-    let retryTimer
-    let storageTimer
-    let revealTimer
-    const objectUrls = new Set()
+    setMostrarCarga(true)
+    setPreparados(0)
+    setErrorCarga(false)
+    setWarmStart(false)
 
     const dibujarImagen = (imagen, indiceDibujado) => {
-      if (!imagen?.naturalWidth || !canvas.width || !canvas.height) return
+      const anchoOriginal = imagen?.naturalWidth ?? imagen?.width
+      const altoOriginal = imagen?.naturalHeight ?? imagen?.height
+      if (!anchoOriginal || !canvas.width || !canvas.height) return
 
       const ancho = canvas.width
       const altoCanvas = canvas.height
-      const escala = Math.max(ancho / imagen.naturalWidth, altoCanvas / imagen.naturalHeight)
-      const anchoImagen = imagen.naturalWidth * escala
-      const altoImagen = imagen.naturalHeight * escala
+      const escala = Math.max(ancho / anchoOriginal, altoCanvas / altoOriginal)
+      const anchoImagen = anchoOriginal * escala
+      const altoImagen = altoOriginal * escala
       const posicionX = window.innerWidth <= 900 ? .58 : .5
       const x = (ancho - anchoImagen) * posicionX
       const y = (altoCanvas - altoImagen) * .5
@@ -138,161 +145,47 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       canvas.dataset.renderedFrame = String(indiceDibujado + 1)
     }
 
-    const tocarCache = (indice) => {
-      const imagen = cache.get(indice)
-      if (!imagen) return null
-      cache.delete(indice)
-      cache.set(indice, imagen)
-      return imagen
+    const dibujarSolicitado = () => {
+      dibujoPendiente = 0
+      const indice = frameSolicitadoRef.current
+      const imagen = almacen.images.get(indice)
+      if (!vivo || !imagen || indice === ultimoDibujado) return
+      dibujarImagen(imagen, indice)
+      ultimoDibujado = indice
     }
 
-    const reducirCache = () => {
-      while (cache.size > LIMITE_CACHE) {
-        const indiceAntiguo = cache.keys().next().value
-        if (
-          indiceAntiguo === frameSolicitadoRef.current
-          || indicesProtegidos.has(indiceAntiguo)
-          || Math.abs(indiceAntiguo - frameSolicitadoRef.current) <= RADIO_PRECARGA
-        ) {
-          const protegido = cache.get(indiceAntiguo)
-          cache.delete(indiceAntiguo)
-          cache.set(indiceAntiguo, protegido)
-          continue
-        }
-        cache.delete(indiceAntiguo)
-      }
-    }
-
-    const adquirirSlotDecodificacion = (prioridad = false) => {
-      if (decoding < CONCURRENCIA_PRECARGA) {
-        decoding += 1
-        return Promise.resolve()
-      }
-
-      return new Promise((resolve) => {
-        const entrada = {
-          prioridad,
-          activar: () => {
-          decoding += 1
-          resolve()
-          },
-        }
-        if (!prioridad) {
-          decodeQueue.push(entrada)
-          return
-        }
-        const primeraNormal = decodeQueue.findIndex((item) => !item.prioridad)
-        if (primeraNormal === -1) decodeQueue.push(entrada)
-        else decodeQueue.splice(primeraNormal, 0, entrada)
-      })
-    }
-
-    const liberarSlotDecodificacion = () => {
-      decoding = Math.max(decoding - 1, 0)
-      decodeQueue.shift()?.activar()
-    }
-
-    const cargarFrame = (indice, prioridad = false) => {
-      const indiceSeguro = limitar(indice, 0, frames.length - 1)
-      const existente = tocarCache(indiceSeguro)
-      if (existente) return Promise.resolve(existente)
-      if (pendientes.has(indiceSeguro)) return pendientes.get(indiceSeguro)
-
-      const promesa = (async () => {
-        await adquirirSlotDecodificacion(prioridad)
-        if (!vivo) {
-          liberarSlotDecodificacion()
-          return null
-        }
-        const imagen = new Image()
-        imagen.decoding = 'async'
-        let objectUrl
-        try {
-          const stored = 'caches' in window
-            ? await (await caches.open(CACHE_NAME)).match(frames[indiceSeguro])
-            : null
-          if (!vivo) return null
-          if (stored) {
-            objectUrl = URL.createObjectURL(await stored.blob())
-            objectUrls.add(objectUrl)
-          }
-          imagen.src = objectUrl ?? frames[indiceSeguro]
-          await imagen.decode()
-          if (!vivo) return null
-          cache.set(indiceSeguro, imagen)
-          reducirCache()
-          return imagen
-        } finally {
-          liberarSlotDecodificacion()
-          pendientes.delete(indiceSeguro)
-          if (objectUrl) {
-            URL.revokeObjectURL(objectUrl)
-            objectUrls.delete(objectUrl)
-          }
-        }
-      })()
-
-      pendientes.set(indiceSeguro, promesa)
-      return promesa
-    }
-
-    const buscarCercano = (indice) => {
-      let mejor = null
-      let posicionMejor = null
-      let distanciaMejor = Number.POSITIVE_INFINITY
-      cache.forEach((imagen, posicion) => {
-        const distancia = Math.abs(posicion - indice)
-        if (distancia < distanciaMejor) {
-          mejor = imagen
-          posicionMejor = posicion
-          distanciaMejor = distancia
-        }
-      })
-      return mejor ? { imagen: mejor, posicion: posicionMejor } : null
-    }
-
-    const precargarEntorno = (indice) => {
-      for (let distancia = 1; distancia <= RADIO_PRECARGA; distancia += 1) {
-        if (pendientes.size >= CONCURRENCIA_PRECARGA) break
-        cargarFrame(indice + distancia).catch(() => {})
-        cargarFrame(indice - distancia).catch(() => {})
-      }
+    const programarDibujo = () => {
+      if (!dibujoPendiente && vivo) dibujoPendiente = requestAnimationFrame(dibujarSolicitado)
     }
 
     const mostrarFrame = (indice) => {
       const indiceSeguro = limitar(Math.round(indice), 0, frames.length - 1)
+      const anterior = frameSolicitadoRef.current
       frameSolicitadoRef.current = indiceSeguro
       canvas.dataset.frame = String(indiceSeguro + 1)
-
-      const disponible = tocarCache(indiceSeguro)
-      if (disponible) dibujarImagen(disponible, indiceSeguro)
-      else {
-        const cercano = buscarCercano(indiceSeguro)
-        if (cercano) dibujarImagen(cercano.imagen, cercano.posicion)
-        cargarFrame(indiceSeguro, true)
-          .then((imagen) => {
-            if (vivo && frameSolicitadoRef.current === indiceSeguro) {
-              dibujarImagen(imagen, indiceSeguro)
-            }
-          })
-          .catch(() => {})
-      }
-
-      if (ready) precargarEntorno(indiceSeguro)
+      if (!ready) return
+      programarDibujo()
+      if (anterior === indiceSeguro && almacen.images.has(indiceSeguro)) return
+      almacen.prepare(indiceSeguro).then(programarDibujo).catch(() => {
+        if (vivo) { setErrorCarga(true); setMostrarCarga(true) }
+      })
     }
 
     const ajustarCanvas = () => {
       const limites = canvas.getBoundingClientRect()
-      const densidad = Math.min(window.devicePixelRatio || 1, 2)
-      canvas.width = Math.max(Math.round(limites.width * densidad), 1)
-      canvas.height = Math.max(Math.round(limites.height * densidad), 1)
-      const imagen = tocarCache(frameSolicitadoRef.current)
-      if (imagen) dibujarImagen(imagen, frameSolicitadoRef.current)
+      const densidad = Math.min(window.devicePixelRatio || 1, 1.5)
+      const ancho = Math.max(Math.round(limites.width * densidad), 1)
+      const altura = Math.max(Math.round(limites.height * densidad), 1)
+      if (canvas.width === ancho && canvas.height === altura) return
+      canvas.width = ancho
+      canvas.height = altura
+      ultimoDibujado = -1
+      programarDibujo()
     }
 
     const actualizar = (progreso) => {
-      if (!ready) return
       const progresoSeguro = limitar(progreso, 0, 1)
+      progresoActual = progresoSeguro
       const posicionGlobal = progresoSeguro * totalClips
       const indiceClip = Math.min(Math.floor(posicionGlobal), totalClips - 1)
       const clip = clips[indiceClip]
@@ -305,6 +198,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       canvas.dataset.clipFrame = String(indiceFrame - clip.inicio + 1)
 
       mostrarFrame(indiceFrame)
+      if (!ready) return
 
       const union = Math.round(posicionGlobal)
       const unionInterna = union > 0 && union < totalClips
@@ -335,86 +229,46 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     ajustarCanvas()
     window.addEventListener('resize', ajustarCanvas, { passive: true })
 
-    const almacenarSecuenciaEnSegundoPlano = () => {
-      if (!vivo) return
-      storeSequence(clips, frames).catch(() => {
-        if (vivo) retryTimer = setTimeout(almacenarSecuenciaEnSegundoPlano, 8000)
-      })
-    }
-
     const prepare = async () => {
-      const inicioPreparacion = performance.now()
       try {
-        const complete = await isInitialSequenceCached(clips, frames)
-        if (!vivo) return
-
-        if (!complete) {
-          setMostrarCarga(true)
-          // Cache Storage recibe primero el clip 1 completo; los demás esperan.
-          storageTimer = setTimeout(almacenarSecuenciaEnSegundoPlano, 50)
-        }
-
-        const indicesCriticos = Array.from(
-          { length: Math.min(FRAMES_INICIO_CRITICOS, clips[0]?.cantidad ?? 0) },
-          (_, indice) => indice,
-        )
-        const primerFrame = cargarFrame(0, true)
-        const bufferCritico = Promise.allSettled(
-          indicesCriticos.map((indice) => cargarFrame(indice, true)),
-        )
-
-        if (!complete) {
-          const esperaRestante = Math.max(
-            MAX_ESPERA_INICIAL_MS - (performance.now() - inicioPreparacion),
-            0,
-          )
-          await Promise.race([
-            bufferCritico,
-            new Promise((resolve) => { revealTimer = setTimeout(resolve, esperaRestante) }),
-          ])
-          clearTimeout(revealTimer)
+        const onProgress = (cantidad) => { if (vivo) setPreparados(cantidad) }
+        if (movimientoReducido) {
+          frameSolicitadoRef.current = frames.length - 1
+          await almacen.preload(onProgress, [frames.length - 1])
+        } else if (paquetes) {
+          const cached = await areFramePacksCached(paquetes)
+          if (!vivo) return
+          setWarmStart(cached)
+          await almacen.preloadPacked(paquetes, onProgress)
         } else {
-          await primerFrame
+          await almacen.preload(onProgress)
         }
-
+        do {
+          const destino = frameSolicitadoRef.current
+          await almacen.prepare(destino)
+          if (destino === frameSolicitadoRef.current) break
+        } while (vivo)
         if (!vivo) return
-        const first = tocarCache(0)
-        if (first) dibujarImagen(first, 0)
-        else {
-          primerFrame.then((imagen) => {
-            if (vivo && frameSolicitadoRef.current === 0 && imagen) dibujarImagen(imagen, 0)
-          }).catch(() => {})
-        }
-        frameSolicitadoRef.current = 0
-        canvas.dataset.frame = '1'
         ready = true
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) mostrarFrame(frames.length - 1)
+        actualizar(movimientoReducido ? 1 : progresoActual)
+        dibujarSolicitado()
         setListo(true)
-        precargarEntorno(0)
         ScrollTrigger.refresh()
       } catch (error) {
         if (!vivo) return
-        console.error('No se pudo preparar el primer fotograma.', error)
-        ready = true
-        setListo(true)
-        storageTimer = setTimeout(almacenarSecuenciaEnSegundoPlano, 500)
-        ScrollTrigger.refresh()
+        console.error('No se pudo preparar la animación.', error)
+        almacen.dispose()
+        setErrorCarga(true)
       }
     }
     void prepare()
 
     const release = () => {
       vivo = false
-      clearTimeout(retryTimer)
-      clearTimeout(storageTimer)
-      clearTimeout(revealTimer)
-      objectUrls.forEach((url) => URL.revokeObjectURL(url))
-      cache.clear()
-      pendientes.clear()
-      decodeQueue.splice(0).forEach(({ activar }) => activar())
+      cancelAnimationFrame(dibujoPendiente)
+      almacen.dispose()
     }
 
-    const movimientoReducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (movimientoReducido) {
       const ultimoIndice = frames.length - 1
       mostrarFrame(ultimoIndice)
@@ -424,8 +278,6 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       return () => {
         release()
         window.removeEventListener('resize', ajustarCanvas)
-        cache.forEach((imagen) => { imagen.src = '' })
-        cache.clear()
       }
     }
 
@@ -440,8 +292,6 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
         release()
         contenedor.removeEventListener('pointermove', alMover)
         window.removeEventListener('resize', ajustarCanvas)
-        cache.forEach((imagen) => { imagen.src = '' })
-        cache.clear()
       }
     }
 
@@ -499,11 +349,8 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       if (animacionFrame) window.cancelAnimationFrame(animacionFrame)
       window.removeEventListener('resize', ajustarCanvas)
       contextoGsap.revert()
-      cache.forEach((imagen) => { imagen.src = '' })
-      cache.clear()
-      pendientes.clear()
     }
-  }, [clips, frames, modo, notificarEscena, totalClips, totalEscenas])
+  }, [clips, frames, modo, notificarEscena, paquetes, totalClips, totalEscenas])
 
   return (
     <div
@@ -523,7 +370,16 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
           <span>JOKER</span>
         </div>
 
-        {mostrarCarga && <SequenceLoader ready={listo} onComplete={ocultarCarga} />}
+        {mostrarCarga && (
+          <SequenceLoader
+            ready={listo && !errorCarga}
+            progress={preparados / (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : frames.length)}
+            error={errorCarga}
+            minDurationMs={warmStart ? 0 : 3000}
+            onRetry={() => window.location.reload()}
+            onComplete={ocultarCarga}
+          />
+        )}
 
         {children}
       </div>
