@@ -10,16 +10,16 @@ import {
 } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { SequenceFrameStore } from '../services/sequenceFrameStore'
 
-const LIMITE_CACHE = 72
-const RADIO_PRECARGA = 24
+const CONSULTA_MOVIL = '(max-width: 900px) and (max-aspect-ratio: 3/4)'
 
 function limitar(valor, minimo, maximo) {
   return Math.min(Math.max(valor, minimo), maximo)
 }
 
-function rutaFrame(ruta, numero, digitos = 3) {
-  return `${ruta}/frame-${String(numero).padStart(digitos, '0')}.png`
+function rutaFrame(ruta, numero, digitos = 3, extension = 'png') {
+  return `${ruta}/frame-${String(numero).padStart(digitos, '0')}.${extension}`
 }
 
 const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
@@ -42,6 +42,15 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   const callbackProgresoRef = useRef(onProgress)
   const [listo, setListo] = useState(false)
   const [preparados, setPreparados] = useState(0)
+  const [errorCarga, setErrorCarga] = useState(false)
+  const [usarFramesMoviles, setUsarFramesMoviles] = useState(() => window.matchMedia(CONSULTA_MOVIL).matches)
+
+  useEffect(() => {
+    const consulta = window.matchMedia(CONSULTA_MOVIL)
+    const actualizarVariante = () => setUsarFramesMoviles(consulta.matches)
+    consulta.addEventListener('change', actualizarVariante)
+    return () => consulta.removeEventListener('change', actualizarVariante)
+  }, [])
 
   const clips = useMemo(() => secuencias.map((secuencia, indice) => ({
     ...secuencia,
@@ -54,13 +63,17 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   const frames = useMemo(() => clips.flatMap((clip) => (
     Array.from(
       { length: clip.cantidad },
-      (_, indice) => rutaFrame(clip.ruta, indice + 1, clip.digitos ?? 3),
+      (_, indice) => rutaFrame(
+        usarFramesMoviles ? (clip.rutaMovil ?? clip.ruta) : clip.ruta,
+        indice + 1, clip.digitos ?? 3, clip.extension ?? 'png',
+      ),
     )
-  )), [clips])
+  )), [clips, usarFramesMoviles])
 
   const totalClips = clips.length
   const alto = alturaScroll ?? Math.max(totalClips * 360 + 100, 460)
-  const cantidadCalentamiento = Math.min(16, frames.length)
+  const movimientoReducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const totalPreparacion = movimientoReducido ? 1 : frames.length
 
   useImperativeHandle(ref, () => contenedorRef.current, [])
 
@@ -84,21 +97,27 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     if (!contenedor || !canvas || !flash || !frames.length || !clips.length) return undefined
 
     let vivo = true
-    const cache = new Map()
-    const pendientes = new Map()
+    let listoParaDibujar = false
+    let progresoActual = 0
+    let ultimoDibujado = -1
+    let dibujoPendiente = 0
+    const almacen = new SequenceFrameStore(frames)
     const contextoCanvas = canvas.getContext('2d', { alpha: false })
 
     setListo(false)
     setPreparados(0)
+    setErrorCarga(false)
 
     const dibujarImagen = (imagen) => {
-      if (!imagen?.naturalWidth || !canvas.width || !canvas.height) return
+      const anchoOriginal = imagen?.naturalWidth ?? imagen?.width
+      const altoOriginal = imagen?.naturalHeight ?? imagen?.height
+      if (!anchoOriginal || !canvas.width || !canvas.height) return
 
       const ancho = canvas.width
       const altoCanvas = canvas.height
-      const escala = Math.max(ancho / imagen.naturalWidth, altoCanvas / imagen.naturalHeight)
-      const anchoImagen = imagen.naturalWidth * escala
-      const altoImagen = imagen.naturalHeight * escala
+      const escala = Math.max(ancho / anchoOriginal, altoCanvas / altoOriginal)
+      const anchoImagen = anchoOriginal * escala
+      const altoImagen = altoOriginal * escala
       const posicionX = window.innerWidth <= 900 ? .58 : .5
       const x = (ancho - anchoImagen) * posicionX
       const y = (altoCanvas - altoImagen) * .5
@@ -110,107 +129,48 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       contextoCanvas.drawImage(imagen, x, y, anchoImagen, altoImagen)
     }
 
-    const tocarCache = (indice) => {
-      const imagen = cache.get(indice)
-      if (!imagen) return null
-      cache.delete(indice)
-      cache.set(indice, imagen)
-      return imagen
+    const dibujarSolicitado = () => {
+      dibujoPendiente = 0
+      const indice = frameSolicitadoRef.current
+      const imagen = almacen.images.get(indice)
+      if (!vivo || !imagen || indice === ultimoDibujado) return
+      canvas.dataset.drawnFrame = String(indice + 1)
+      dibujarImagen(imagen)
+      ultimoDibujado = indice
     }
 
-    const reducirCache = () => {
-      while (cache.size > LIMITE_CACHE) {
-        const indiceAntiguo = cache.keys().next().value
-        if (indiceAntiguo === frameSolicitadoRef.current) {
-          const protegido = cache.get(indiceAntiguo)
-          cache.delete(indiceAntiguo)
-          cache.set(indiceAntiguo, protegido)
-          continue
-        }
-        const imagen = cache.get(indiceAntiguo)
-        cache.delete(indiceAntiguo)
-        imagen.src = ''
-      }
-    }
-
-    const cargarFrame = (indice) => {
-      const indiceSeguro = limitar(indice, 0, frames.length - 1)
-      const existente = tocarCache(indiceSeguro)
-      if (existente) return Promise.resolve(existente)
-      if (pendientes.has(indiceSeguro)) return pendientes.get(indiceSeguro)
-
-      const promesa = new Promise((resolver, rechazar) => {
-        const imagen = new Image()
-        imagen.decoding = 'async'
-        imagen.onload = () => {
-          if (!vivo) return
-          pendientes.delete(indiceSeguro)
-          cache.set(indiceSeguro, imagen)
-          reducirCache()
-          resolver(imagen)
-        }
-        imagen.onerror = () => {
-          pendientes.delete(indiceSeguro)
-          rechazar(new Error(`No se pudo cargar ${frames[indiceSeguro]}`))
-        }
-        imagen.src = frames[indiceSeguro]
-      })
-
-      pendientes.set(indiceSeguro, promesa)
-      return promesa
-    }
-
-    const buscarCercano = (indice) => {
-      let mejor = null
-      let distanciaMejor = Number.POSITIVE_INFINITY
-      cache.forEach((imagen, posicion) => {
-        const distancia = Math.abs(posicion - indice)
-        if (distancia < distanciaMejor) {
-          mejor = imagen
-          distanciaMejor = distancia
-        }
-      })
-      return mejor
-    }
-
-    const precargarEntorno = (indice) => {
-      for (let distancia = 1; distancia <= RADIO_PRECARGA; distancia += 1) {
-        cargarFrame(indice + distancia).catch(() => {})
-        cargarFrame(indice - distancia).catch(() => {})
-      }
+    const programarDibujo = () => {
+      if (!dibujoPendiente && vivo) dibujoPendiente = requestAnimationFrame(dibujarSolicitado)
     }
 
     const mostrarFrame = (indice) => {
       const indiceSeguro = limitar(Math.round(indice), 0, frames.length - 1)
+      const anterior = frameSolicitadoRef.current
       frameSolicitadoRef.current = indiceSeguro
       canvas.dataset.frame = String(indiceSeguro + 1)
-
-      const disponible = tocarCache(indiceSeguro)
-      if (disponible) dibujarImagen(disponible)
-      else {
-        const cercano = buscarCercano(indiceSeguro)
-        if (cercano) dibujarImagen(cercano)
-        cargarFrame(indiceSeguro)
-          .then((imagen) => {
-            if (vivo && frameSolicitadoRef.current === indiceSeguro) dibujarImagen(imagen)
-          })
-          .catch(() => {})
-      }
-
-      precargarEntorno(indiceSeguro)
+      if (!listoParaDibujar) return
+      programarDibujo()
+      if (anterior === indiceSeguro && almacen.images.has(indiceSeguro)) return
+      almacen.prepare(indiceSeguro).then(programarDibujo).catch(() => {
+        if (vivo) setErrorCarga(true)
+      })
     }
 
     const ajustarCanvas = () => {
       const limites = canvas.getBoundingClientRect()
       const densidad = Math.min(window.devicePixelRatio || 1, 1.5)
-      canvas.width = Math.max(Math.round(limites.width * densidad), 1)
-      canvas.height = Math.max(Math.round(limites.height * densidad), 1)
-      const imagen = tocarCache(frameSolicitadoRef.current)
-      if (imagen) dibujarImagen(imagen)
+      const ancho = Math.max(Math.round(limites.width * densidad), 1)
+      const altura = Math.max(Math.round(limites.height * densidad), 1)
+      if (canvas.width === ancho && canvas.height === altura) return
+      canvas.width = ancho
+      canvas.height = altura
+      ultimoDibujado = -1
+      programarDibujo()
     }
 
     const actualizar = (progreso) => {
       const progresoSeguro = limitar(progreso, 0, 1)
+      progresoActual = progresoSeguro
       const posicionGlobal = progresoSeguro * totalClips
       const indiceClip = Math.min(Math.floor(posicionGlobal), totalClips - 1)
       const clip = clips[indiceClip]
@@ -220,6 +180,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       const indiceFrame = clip.inicio + Math.round(progresoClip * (clip.cantidad - 1))
 
       mostrarFrame(indiceFrame)
+      if (!listoParaDibujar) return
 
       const unionCercana = Math.round(posicionGlobal)
       const esUnionInterna = unionCercana > 0 && unionCercana < totalClips
@@ -249,36 +210,46 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     ajustarCanvas()
     window.addEventListener('resize', ajustarCanvas, { passive: true })
 
-    const esenciales = [
-      ...Array.from({ length: cantidadCalentamiento }, (_, indice) => indice),
-      ...clips.map((clip) => clip.inicio),
-    ]
-    const esencialesUnicos = [...new Set(esenciales)]
-    cargarFrame(0).then((imagen) => dibujarImagen(imagen)).catch(() => {})
-    Promise.all(esencialesUnicos.map((indice) => (
-      cargarFrame(indice)
-        .then(() => setPreparados((valor) => valor + 1))
-        .catch(() => setPreparados((valor) => valor + 1))
-    ))).then(() => {
-      if (vivo) setListo(true)
-    })
+    const cargar = async () => {
+      try {
+        await almacen.preload((cantidad) => {
+          if (vivo) setPreparados(cantidad)
+        }, movimientoReducido ? [frames.length - 1] : undefined)
+        // The visitor may have scrolled while the initial overlay was visible.
+        // Prepare the current destination before exposing the animation.
+        do {
+          const destino = frameSolicitadoRef.current
+          await almacen.prepare(destino)
+          if (destino === frameSolicitadoRef.current) break
+        } while (vivo)
+        if (!vivo) return
+        listoParaDibujar = true
+        actualizar(movimientoReducido ? 1 : progresoActual)
+        dibujarSolicitado()
+        setListo(true)
+      } catch (error) {
+        if (!vivo) return
+        console.error('No se pudo preparar la secuencia', error)
+        almacen.dispose()
+        setErrorCarga(true)
+      }
+    }
 
-    const movimientoReducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (movimientoReducido) {
       const ultimoIndice = frames.length - 1
-      mostrarFrame(ultimoIndice)
-      notificarEscena(totalClips)
-      callbackProgresoRef.current?.(1)
+      frameSolicitadoRef.current = ultimoIndice
+      cargar()
 
       return () => {
         vivo = false
         window.removeEventListener('resize', ajustarCanvas)
-        cache.forEach((imagen) => { imagen.src = '' })
-        cache.clear()
+        cancelAnimationFrame(dibujoPendiente)
+        almacen.dispose()
       }
     }
 
     if (modo === 'mouse') {
+      cargar()
       const alMover = (evento) => {
         const limites = contenedor.getBoundingClientRect()
         actualizar((evento.clientX - limites.left) / limites.width)
@@ -289,8 +260,8 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
         vivo = false
         contenedor.removeEventListener('pointermove', alMover)
         window.removeEventListener('resize', ajustarCanvas)
-        cache.forEach((imagen) => { imagen.src = '' })
-        cache.clear()
+        cancelAnimationFrame(dibujoPendiente)
+        almacen.dispose()
       }
     }
 
@@ -310,18 +281,16 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
         },
       })
     }, contenedor)
+    cargar()
 
     return () => {
       vivo = false
       window.removeEventListener('resize', ajustarCanvas)
       contextoGsap.revert()
-      cache.forEach((imagen) => { imagen.src = '' })
-      cache.clear()
-      pendientes.clear()
+      cancelAnimationFrame(dibujoPendiente)
+      almacen.dispose()
     }
-  }, [cantidadCalentamiento, clips, frames, modo, notificarEscena, totalClips])
-
-  const totalPreparacion = Math.min(cantidadCalentamiento + Math.max(totalClips - 1, 0), frames.length)
+  }, [clips, frames, modo, movimientoReducido, notificarEscena, totalClips])
 
   return (
     <div
@@ -339,7 +308,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
         <div ref={flashRef} className="image-sequence__spray-flash" aria-hidden="true" />
 
-        {!listo && (
+        {(!listo || errorCarga) && (
           <div className="image-sequence__loading" role="status" aria-live="polite">
             <strong>JOKER</strong>
             <div className="image-sequence__loading-track" aria-hidden="true">
@@ -349,7 +318,8 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
                 }}
               />
             </div>
-            <span>Preparando fotogramas {Math.min(preparados, totalPreparacion)}/{totalPreparacion}</span>
+            <span>{errorCarga ? 'No pudimos cargar la animación.' : `Preparando animación ${Math.round(preparados / totalPreparacion * 100) || 0}%`}</span>
+            {errorCarga && <button type="button" onClick={() => window.location.reload()}>Reintentar</button>}
           </div>
         )}
 

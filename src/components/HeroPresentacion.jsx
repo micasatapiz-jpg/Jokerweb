@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import { gsap } from 'gsap'
 import ImageSequenceViewer from './ImageSequenceViewer'
 
-const secuenciasMascota = [
-  { ruta: '/secuencias/joker/clip-01', cantidad: 480 },
-  { ruta: '/secuencias/joker/clip-02', cantidad: 480 },
-  { ruta: '/secuencias/joker/clip-03', cantidad: 480 },
-]
+const secuenciasMascota = [1, 2, 3].map((clip) => ({
+  ruta: `/secuencias/joker/optimized/desktop/clip-0${clip}`,
+  rutaMovil: `/secuencias/joker/optimized/mobile/clip-0${clip}`,
+  extension: 'webp',
+  cantidad: 160,
+}))
 
 const mensajes = [
   {
