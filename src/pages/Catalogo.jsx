@@ -4,7 +4,7 @@ import WhatsAppButton from '../components/WhatsAppButton'
 import { serviceFamilies } from '../config/siteConfig'
 import { productFamilies } from '../config/productFamilies'
 import serviciosHero from '../assets/heroes/letreros-photo-v1.webp'
-import serviciosProduccion from '../assets/editorial/servicios-produccion-v1.png'
+import serviciosProduccion from '../assets/editorial/servicios-produccion-v1.webp'
 
 const serviceHeroSlides = [
   {

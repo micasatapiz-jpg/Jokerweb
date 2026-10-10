@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { gsap } from 'gsap'
-import backgroundScroll from '../assets/home/background-scroll-illustrated.png'
+import backgroundScroll from '../assets/home/background-scroll-illustrated.webp'
 import { serviceFamilies, siteConfig } from '../config/siteConfig'
 import ImageSequenceViewer from './ImageSequenceViewer'
 import WhatsAppButton from './WhatsAppButton'

@@ -1,0 +1,17 @@
+**/node_modules
+**/.env
+**/.env.*
+**/dist
+**/uploads
+.git
+scripts/.frame-tools
+**/__pycache__
+**/*.log
+server/src/generated
+
+# The public landing image has no sales API and needs only packed frames + one still.
+server
+public/secuencias/joker/clip-*/**
+!public/secuencias/joker/clip-03/frame-192.webp
+src/assets/**/*.png
+src/assets/mascota-joker

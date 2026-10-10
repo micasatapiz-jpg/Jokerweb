@@ -15,6 +15,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 CLIPS = [("clip-01", 480), ("clip-02", 192), ("clip-03", 192)]
 GROUP_SIZE = 64
+WEBP_QUALITY = 75
 MAGIC = b"JSEQ001\n"
 # Clip 1's face is left of center; clips 2 and 3 keep their existing framing.
 MOBILE_CROP_POSITION = {"clip-01": .10, "clip-02": .58, "clip-03": .58}
@@ -36,7 +37,7 @@ def pack_group(task):
             else:
                 image = image.resize((960, 540), Image.Resampling.LANCZOS)
             buffer = BytesIO()
-            image.save(buffer, "WEBP", quality=85, method=4)
+            image.save(buffer, "WEBP", quality=WEBP_QUALITY, method=4)
             encoded.append(buffer.getvalue())
     payload = MAGIC + struct.pack("<I", len(encoded))
     payload += struct.pack(f"<{len(encoded)}I", *(len(frame) for frame in encoded))
@@ -66,7 +67,8 @@ if __name__ == "__main__":
             tasks.extend((variant, clip, start, min(start + GROUP_SIZE, count), global_start)
                          for start in range(0, count, GROUP_SIZE))
             global_start += count
-    manifest = {"sourceBranch": "inicio-scroll-unificado",
+    manifest = {"webpQuality": WEBP_QUALITY,
+                "sourceBranch": "inicio-scroll-unificado",
                 "sourceCommit": "54387c7b571703000b74fd7d3051d09601e6f79a",
                 "desktop": [], "mobile": []}
     with ProcessPoolExecutor(max_workers=3) as pool:
@@ -76,5 +78,11 @@ if __name__ == "__main__":
                   f"{descriptor['start'] + descriptor['count']}", flush=True)
     destination = ROOT / "src/config/sequenceBundles.json"
     destination.write_text(json.dumps(manifest, indent=2) + "\n")
+    # Publish only the current content hashes. Originals remain in the repository.
+    referenced = {ROOT / "public" / pack["url"].lstrip("/")
+                  for variant in ["desktop", "mobile"] for pack in manifest[variant]}
+    for path in (ROOT / "public/secuencias/joker/packed").glob("*/*.bin"):
+        if path not in referenced:
+            path.unlink()
     for variant in ["desktop", "mobile"]:
         print(variant, "bytes:", sum(pack["bytes"] for pack in manifest[variant]))

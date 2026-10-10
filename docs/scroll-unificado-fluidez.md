@@ -22,15 +22,16 @@ corresponden a la animación nueva, no a los PNG de la versión de `main`.
 
 - Cada fotograma actual se conserva, en el mismo orden y con el mismo
   recorrido. No hay muestreo ni sustitución de ilustraciones.
-- Se generan variantes WebP con calidad 85: escritorio a 960 × 540 y móvil
+- Se generan variantes WebP con calidad 75: escritorio a 960 × 540 y móvil
   vertical con recorte a 540 × 720. El móvil conserva la altura original y
   un encuadre horizontal del 10% en el primer clip para mostrar el rostro,
   y el 58% existente en los clips segundo y tercero. Esta compresión es con pérdida.
 - Los fotogramas se agrupan de 64 en 64 en 14 archivos binarios por variante.
   El encabezado `JSEQ001` contiene el número de imágenes y sus longitudes.
   El lector verifica límites, cantidades y tamaño completo antes de usarlos.
-- Escritorio descarga 61.217.674 bytes; móvil, 51.249.150 bytes: cerca de un
-  83% y un 86% menos, respectivamente, con todos los fotogramas originales.
+- Escritorio descarga 40.624.080 bytes; móvil, 34.556.100 bytes: cerca de un
+  89% y un 90% menos que los originales, respectivamente. La revisión de costes
+  reduce otro 33% aproximadamente frente a los paquetes anteriores de calidad 85.
 - Se permiten cuatro descargas simultáneas. La entrada espera la descarga
   completa y la preparación del destino actual, incluso si se hizo scroll
   durante el indicador. No hay un plazo que marque imágenes pendientes
@@ -52,9 +53,10 @@ corresponden a la animación nueva, no a los PNG de la versión de `main`.
 Con una conexión lenta, descargar la variante completa puede tardar decenas
 de segundos. El cambio prioriza un recorrido preparado de principio a fin;
 no promete una entrada instantánea ni 60 FPS en todos los dispositivos.
-Los archivos originales siguen en `public`, por lo que también se copian a
-`dist`: esta mejora reduce la transferencia durante la visita, no el tamaño
-total del artefacto de despliegue.
+Los archivos originales siguen intactos en el repositorio. La compilación
+excluye de `dist` los fotogramas individuales que no usa la landing y conserva
+solo los paquetes actuales y el último fotograma para movimiento reducido.
+El fondo ilustrado también se sirve como WebP. Ver `docs/seguridad-y-costes.md`.
 
 ## Regeneración y comprobaciones
 

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prepareStatic.js",
     "lint": "oxlint",
     "preview": "vite preview",
     "local:db": "docker compose up -d postgres",

@@ -1,0 +1,37 @@
+{
+	auto_https off
+	admin off
+}
+
+:{$PORT:3000} {
+	root * /srv
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+		Strict-Transport-Security "max-age=31536000"
+	}
+
+	@internal path /api /api/* /app /app/* /propuesta-visual /propuesta-visual/*
+	@hidden path_regexp hidden (^|/)\.
+	@write not method GET HEAD
+	@immutable path /assets/* /secuencias/joker/packed/*
+	@still path /secuencias/joker/clip-03/frame-192.webp
+
+	route {
+		header Cache-Control "no-cache"
+		respond @internal "No encontrado" 404
+		respond @hidden "No encontrado" 404
+		respond @write "Método no permitido" 405
+		respond /healthz "ok" 200
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+		header @still Cache-Control "public, max-age=86400"
+		try_files {path} {path}/index.html
+		file_server {
+			precompressed gzip
+		}
+	}
+}
