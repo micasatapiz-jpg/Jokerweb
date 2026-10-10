@@ -45,6 +45,9 @@ corresponden a la animación nueva, no a los PNG de la versión de `main`.
   `requestAnimationFrame`; no se repite si el fotograma no cambia.
 - Los fallos muestran una opción de reintento. Movimiento reducido descarga
   solamente el último WebP original, sin preparar toda la animación.
+- La presentación de entrada usa SpinKit Chase únicamente en la primera
+  visita sin caché. Las siguientes visitas la omiten; no hay una espera mínima
+  de tres segundos. Ver `docs/entrada-primera-visita.md`.
 
 Con una conexión lenta, descargar la variante completa puede tardar decenas
 de segundos. El cambio prioriza un recorrido preparado de principio a fin;

@@ -1,17 +1,14 @@
 import { useLayoutEffect, useRef } from 'react'
-import { Zoomies } from 'ldrs/react'
-import 'ldrs/react/Zoomies.css'
 import { gsap } from 'gsap'
+import '../styles/sequence-intro.css'
 
-const DURACION_TOTAL_MS = 3000
-const DURACION_SALIDA = .3
+const DURACION_SALIDA = .2
 
-export default function SequenceLoader({ ready, onComplete, progress, error, onRetry, minDurationMs = DURACION_TOTAL_MS }) {
+export default function SequenceLoader({ ready, onComplete, progress, error, onRetry }) {
   const root = useRef(null)
-  const inicioRef = useRef(0)
 
   useLayoutEffect(() => {
-    if (!inicioRef.current) inicioRef.current = performance.now()
+    if (error) return undefined
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     const context = gsap.context(() => {
       if (!ready) {
@@ -23,42 +20,33 @@ export default function SequenceLoader({ ready, onComplete, progress, error, onR
         return
       }
 
-      const transcurrido = performance.now() - inicioRef.current
-      const espera = Math.max(
-        minDurationMs - transcurrido - DURACION_SALIDA * 1000,
-        0,
-      ) / 1000
       gsap.to(root.current, {
         opacity: 0,
         duration: reduced ? 0 : DURACION_SALIDA,
-        delay: espera,
         ease: 'power2.inOut',
         onComplete,
       })
     }, root)
     return () => context.revert()
-  }, [ready, onComplete, minDurationMs])
+  }, [ready, onComplete, error])
 
   return (
     <div ref={root} className="image-sequence__loading" role="status" aria-label="Preparando la experiencia de Joker">
-      <div className="image-sequence__loading-mark" aria-hidden="true">
+      {!error && <div className="image-sequence__loading-mark joker-intro" aria-hidden="true">
         <strong>JOKER</strong>
-        <Zoomies
-          size={320}
-          stroke={5}
-          speed={1.25}
-          bgOpacity={.16}
-          color="var(--joker-turquoise)"
-        />
-      </div>
+        <div className="sk-chase">
+          {Array.from({ length: 6 }, (_, index) => <span className="sk-chase-dot" key={index} />)}
+        </div>
+        <progress className="joker-intro__progress" value={progress ?? 0} max="1" />
+      </div>}
       {error ? (
         <div className="image-sequence__loading-message" role="alert">
-          <p>No pudimos cargar la animación.</p>
+          <p>No pudimos cargar el contenido.</p>
           <button type="button" onClick={onRetry}>Reintentar</button>
         </div>
       ) : progress !== undefined && (
         <span className="image-sequence__loading-message">
-          Preparando animación {Math.round(progress * 100)}%
+          Preparando tu primera visita · {Math.round(progress * 100)}%
         </span>
       )}
     </div>

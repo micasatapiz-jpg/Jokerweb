@@ -13,6 +13,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import SequenceLoader from './SequenceLoader'
 import { SequenceFrameStore } from '../services/sequenceFrameStore'
 import { areFramePacksCached } from '../utils/framePacks'
+import { hasSeenSequenceIntro, rememberSequenceIntro } from '../utils/sequenceIntro'
 
 const CONSULTA_MOVIL = '(max-width: 900px) and (max-aspect-ratio: 3/4)'
 
@@ -49,7 +50,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   const [mostrarCarga, setMostrarCarga] = useState(false)
   const [preparados, setPreparados] = useState(0)
   const [errorCarga, setErrorCarga] = useState(false)
-  const [warmStart, setWarmStart] = useState(false)
+  const [cargaDiscreta, setCargaDiscreta] = useState(false)
   const [usarFramesMoviles, setUsarFramesMoviles] = useState(() => window.matchMedia(CONSULTA_MOVIL).matches)
   const paquetes = framePacks?.[usarFramesMoviles ? 'mobile' : 'desktop']
 
@@ -115,13 +116,15 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     let progresoActual = 0
     let ultimoDibujado = -1
     let dibujoPendiente = 0
+    let introActiva = false
+    let previewPending = false
     const movimientoReducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     setListo(false)
-    setMostrarCarga(true)
+    setMostrarCarga(false)
     setPreparados(0)
     setErrorCarga(false)
-    setWarmStart(false)
+    setCargaDiscreta(false)
 
     const dibujarImagen = (imagen, indiceDibujado) => {
       const anchoOriginal = imagen?.naturalWidth ?? imagen?.width
@@ -231,14 +234,30 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     const prepare = async () => {
       try {
-        const onProgress = (cantidad) => { if (vivo) setPreparados(cantidad) }
+        const onProgress = (cantidad) => {
+          if (!vivo) return
+          setPreparados(cantidad)
+          const destino = frameSolicitadoRef.current
+          // On repeat visits, paint the current cached frame as soon as its pack
+          // is available, while the rest of the compressed sequence is prepared.
+          if (!introActiva && !ready && !previewPending && almacen.blobs.has(destino)) {
+            previewPending = true
+            const preview = almacen.request(destino)
+            almacen.pump()
+            preview.then((imagen) => {
+              if (vivo && imagen && !ready && destino === frameSolicitadoRef.current) dibujarImagen(imagen, destino)
+            }).catch(() => {}).finally(() => { previewPending = false })
+          }
+        }
+        const cached = paquetes && !movimientoReducido ? await areFramePacksCached(paquetes) : false
+        if (!vivo) return
+        introActiva = !movimientoReducido && !cached && !hasSeenSequenceIntro()
+        setMostrarCarga(introActiva)
+        setCargaDiscreta(!introActiva)
         if (movimientoReducido) {
           frameSolicitadoRef.current = frames.length - 1
           await almacen.preload(onProgress, [frames.length - 1])
         } else if (paquetes) {
-          const cached = await areFramePacksCached(paquetes)
-          if (!vivo) return
-          setWarmStart(cached)
           await almacen.preloadPacked(paquetes, onProgress)
         } else {
           await almacen.preload(onProgress)
@@ -253,6 +272,8 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
         actualizar(movimientoReducido ? 1 : progresoActual)
         dibujarSolicitado()
         setListo(true)
+        setCargaDiscreta(false)
+        rememberSequenceIntro()
         ScrollTrigger.refresh()
       } catch (error) {
         if (!vivo) return
@@ -370,15 +391,19 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
           <span>JOKER</span>
         </div>
 
-        {mostrarCarga && (
+        {(mostrarCarga || errorCarga) && (
           <SequenceLoader
             ready={listo && !errorCarga}
             progress={preparados / (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : frames.length)}
             error={errorCarga}
-            minDurationMs={warmStart ? 0 : 3000}
             onRetry={() => window.location.reload()}
             onComplete={ocultarCarga}
           />
+        )}
+        {cargaDiscreta && !listo && !errorCarga && (
+          <span className="image-sequence__cache-status" role="status">
+            Cargando contenido · {Math.round(preparados / frames.length * 100)}%
+          </span>
         )}
 
         {children}
