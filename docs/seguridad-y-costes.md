@@ -4,6 +4,12 @@ Fecha de revisión: 9 de octubre de 2026. Se revisaron el código, las dependenc
 la configuración de despliegue y el contenedor local. No hubo acceso a una cuenta
 Railway, su facturación, sus servicios activos ni un dominio en producción.
 
+**Ampliación del 10 de octubre:** [Trivy revisó el repositorio y la imagen](security/trivy-results.md).
+El frontend sigue sin alertas de dependencias, pero el binario de Caddy y Alpine
+presentan cuatro hallazgos altos, ocho medios, uno bajo y siete sin clasificación.
+La alerta de Range merece corrección antes de publicar. Estos hallazgos completan
+el análisis del contenedor que no se había hecho en la revisión original.
+
 ## Hallazgos y correcciones
 
 | Riesgo | Evidencia anterior | Resultado |
@@ -134,6 +140,7 @@ scroll offline en ambos sentidos, la segunda visita sin intro/descargas, las
 diez páginas interiores sin imágenes rotas/errores JS/violaciones CSP y
 movimiento reducido sin descarga de paquetes.
 
-No se hizo un pentest del hosting en Internet ni un escaneo exhaustivo de CVEs
-del sistema operativo de Caddy. Mantener la imagen del servidor actualizada,
+En la revisión original no se hizo un pentest del hosting en Internet ni un
+escaneo de CVEs de la imagen de Caddy; el análisis posterior con Trivy está
+enlazado al principio del documento. Mantener la imagen del servidor actualizada,
 repetir auditorías y comprobar cabeceras/métricas después del despliegue.

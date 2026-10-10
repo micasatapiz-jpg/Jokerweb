@@ -40,3 +40,6 @@ server/dist/
 server/src/generated/prisma/
 server/uploads/
 **/__pycache__/
+
+# Local security scanner reports can include source snippets or secret values.
+.security-reports/

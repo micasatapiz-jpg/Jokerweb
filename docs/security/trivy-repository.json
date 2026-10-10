@@ -1,0 +1,229 @@
+{
+  "scanner": "Trivy 0.75.0",
+  "createdAt": "2026-10-10T06:27:07.233100979Z",
+  "commit": "257fc52b1380b0df65ec01619f1b196bd55d1cf3",
+  "scope": "repository-full",
+  "results": [
+    {
+      "target": "package-lock.json",
+      "type": "npm",
+      "vulnerabilities": [],
+      "misconfigurations": [],
+      "secrets": []
+    },
+    {
+      "target": "server/package-lock.json",
+      "type": "npm",
+      "vulnerabilities": [
+        {
+          "VulnerabilityID": "GHSA-9c5c-9qcx-q35q",
+          "PkgName": "@nestjs/platform-fastify",
+          "InstalledVersion": "12.0.1",
+          "FixedVersion": "11.2.4, 12.0.2",
+          "Severity": "HIGH",
+          "Title": "@nestjs/platform-fastify: Path-scoped middleware bypass via absolute-form request targets",
+          "Description": "| Field | Value |\n| --- | --- |\n| Ecosystem | npm |\n| Package | `@nestjs/platform-fastify` |\n| Affected versions | `>= 12.0.0, < 12.0.2` and `< 11.2.4` |\n| Patched versions | `12.0.2` and `11.2.4` (upgrade to `12.0.3` / `11.2.5`) |\n\n### Summary\n\nOn the Fastify adapter, an HTTP request that uses an **absolute-form request target** (`GET http://host/path HTTP/1.1`\ninstead of `GET /path HTTP/1.1`) reaches the route handler without running the path-scoped Nest middleware bound to\nthat route. Applications that enforce authentication or authorization in middleware execute the protected handler\nwith those checks skipped.\n\n### Impact\n\nAny application that\n\n- uses `@nestjs/platform-fastify`, and\n- binds middleware to specific paths via `MiddlewareConsumer.forRoutes(...)` or `.exclude(...)`, and\n- is reachable by a client that controls the raw request line.\n\nNode's HTTP server accepts absolute-form targets, so no special server configuration is needed. Exposure is reduced\nwhen a reverse proxy in front of the application rewrites the request target to origin-form, which most do.\n\nWhere the bypassed middleware performs authentication or authorization, the result is an authentication or\nauthorization bypass. Where it performs logging, rate limiting or body handling, those are silently skipped instead.\n\n### Details\n\nFastify's router (`find-my-way`) resolves an absolute-form target to its path before matching, so the route handler\nis dispatched normally. Two places on the middleware side matched against the **raw** request target instead:\n\n1. The bundled copy of the `@fastify/middie` engine at `packages/platform-fastify/adapters/middie/fastify-middie.ts`.\n   NestJS carried this fork to apply an earlier path-decoding fix and it did not track the upstream absolute-form fix\n   released in `@fastify/middie@9.3.4`.\n2. `FastifyAdapter`'s own re-check in `createMiddlewareFactory()`, which tests the middleware path regexp against\n   `req.originalUrl`.\n\nBoth normalized and percent-decoded the target, but neither resolved absolute-form to a path, so the router and the\nmiddleware layer disagreed about which path was being requested.\n\nA second, related defect contributed. Because the adapter always passes `routerOptions` (to install the version\nconstraint), Fastify did not reflect the deprecated **top-level** router options (`ignoreTrailingSlash`,\n`ignoreDuplicateSlashes`, `caseSensitive`, `useSemicolonDelimiter`) in `initialConfig.routerOptions`, which is what\nthe middleware engine reads. Applications passing those options at the top level had middleware normalize paths\ndifferently from the router, which widened the mismatch.\n\n### Proof of concept\n\n```ts\n@Controller('users')\nexport class UsersController {\n  @Get()\n  findAll() {\n    return 'protected data';\n  }\n}\n\n@Module({ controllers: [UsersController] })\nexport class AppModule implements NestModule {\n  configure(consumer: MiddlewareConsumer) {\n    consumer\n      .apply((req, res) => res.end('blocked by auth middleware'))\n      .forRoutes({ path: 'users', method: RequestMethod.GET });\n  }\n}\n```\n\n`supertest` and `light-my-request` always emit origin-form targets, so the request has to be written to the socket:\n\n```js\nconst { connect } = require('node:net');\n\nconst socket = connect(3000, '127.0.0.1', () => {\n  socket.write(\n    'GET http://127.0.0.1:3000/users HTTP/1.1\\r\\n' +\n      'Host: 127.0.0.1:3000\\r\\n' +\n      'Connection: close\\r\\n\\r\\n',\n  );\n});\nsocket.pipe(process.stdout);\n```\n\nObserved on an affected version: `protected data` — the middleware did not run.\nExpected, and observed on a patched version: `blocked by auth middleware`.\n\n### Patches\n\nFixed in **12.0.2** and **11.2.4**. Upgrading to **12.0.3** or **11.2.5** is recommended.\n\n- The bundled `@fastify/middie` fork was removed and the package now depends on `@fastify/middie@9.3.4`, which\n  resolves absolute-form targets before matching.\n- The adapter resolves absolute-form targets in its own route check, mirroring `find-my-way`.\n- Deprecated top-level Fastify router options are folded into `routerOptions` so the middleware engine and the\n  router normalize paths identically.\n\n### Workarounds\n\nIf you cannot upgrade, reject non-origin-form request targets before middleware runs. Register the hook on the\nFastify instance **before the application is initialized**, so that it runs ahead of the middleware engine's own\n`onRequest` hook, and confirm with the request above that the rejection takes effect:\n\n```ts\nconst adapter = new FastifyAdapter();\nadapter.getInstance().addHook('onRequest', (request, reply, done) => {\n  const target = request.raw.url ?? '';\n  // \"*\" is the legitimate request target of \"OPTIONS * HTTP/1.1\"\n  if (target[0] !== '/' && target !== '*') {\n    reply.code(400).send();\n    return;\n  }\n  done();\n});\n```\n\nRejecting or normalizing absolute-form targets at a reverse proxy in front of the application is equally effective.\n\n### Credit\n\nReported by ZeroVuln Labs.",
+          "PrimaryURL": "https://github.com/advisories/GHSA-9c5c-9qcx-q35q"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-102276",
+          "PkgName": "brace-expansion",
+          "InstalledVersion": "5.0.9",
+          "FixedVersion": "5.0.10, 3.0.7, 2.1.5, 1.1.19",
+          "Severity": "HIGH",
+          "Title": "brace-expansion: brace-expansion: Denial of Service via stack exhaustion from crafted brace patterns",
+          "Description": "The brace-expansion library generates arbitrary strings containing a common prefix and suffix. Prior to 1.1.19, 2.1.5, 3.0.7, and 5.0.10, crafted brace patterns can exhaust the native stack in parseCommaParts because parseCommaParts recursively processes the remainder once per brace group and uses push.apply to pass every element of a very large comma-part array as a function argument. Patterns containing many comma-separated brace groups trigger the recursive path, while the large array triggers the argument-array path without deep recursion. These paths cause recursive and argument-array native stack exhaustion before max or maxLength can limit output, potentially terminating the Node.js process in a process-terminating denial of service. This issue is fixed in versions 1.1.19, 2.1.5, 3.0.7, and 5.0.10.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-102276"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-102278",
+          "PkgName": "brace-expansion",
+          "InstalledVersion": "5.0.9",
+          "FixedVersion": "5.0.11, 3.0.8, 2.1.6, 1.1.20",
+          "Severity": "HIGH",
+          "Title": "brace-expansion: brace-expansion: Denial of Service via uncontrolled recursion in nested brace patterns",
+          "Description": "The brace-expansion library generates arbitrary strings containing a common prefix and suffix. Prior to 1.1.20, 2.1.6, 3.0.8, and 5.0.11, deeply nested brace groups cause expand_() to recurse once per nesting level at comma-member and single-set expansion sites, exhausting the native stack before output limits can apply and potentially terminating the Node.js process. expand_ performs uncontrolled recursion for nested brace alternatives and single-part sets. deeply nested brace groups supplied as an untrusted pattern. expand_ is affected. expand is affected. Comma members is affected. Single set is affected. native stack exhaustion during nested sub-expansion. process-terminating denial of service. This issue is fixed in versions 1.1.20, 2.1.6, 3.0.8, and 5.0.11.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-102278"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-102277",
+          "PkgName": "brace-expansion",
+          "InstalledVersion": "5.0.9",
+          "FixedVersion": "5.0.12, 3.0.9, 2.1.7, 1.1.21",
+          "Severity": "MEDIUM",
+          "Title": "brace-expansion: brace-expansion: Denial of Service via crafted brace patterns",
+          "Description": "The brace-expansion library generates arbitrary strings containing a common prefix and suffix. Prior to 1.1.21, 2.1.7, 3.0.9, and 5.0.12, the expand function handles untrusted {a},b}-shaped patterns with many trailing closing braces by restarting its scan once for each trailing closing brace. The successive full-input rescans with linear working-string growth cause quadratic CPU time and memory pressure that can block the Node.js event loop. The process eventually recovers, making the impact a recoverable CPU denial of service. This issue is fixed in versions 1.1.21, 2.1.7, 3.0.9, and 5.0.12.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-102277"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-40345",
+          "PkgName": "deepmerge-ts",
+          "InstalledVersion": "7.1.5",
+          "FixedVersion": "8.0.0",
+          "Severity": "HIGH",
+          "Title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+          "Description": "deepmerge-ts is a typescript library providing functionality to deep merging of javascript objects. Prior to 8.0.0, the deepmerge, deepmergeCustom, deepmergeInto, and deepmergeIntoCustom APIs do not track visited objects or object pairs when recursively merging records. When two input values contain self-references at the same property path, the merge logic repeatedly revisits the same pair until Node.js raises RangeError: Maximum call stack size exceeded. Applications that merge attacker-controlled recursive object graphs can synchronously crash the affected process or cause repeated worker restarts. Plain JSON input alone cannot create the recursive graph required to trigger the issue. This issue is fixed in version 8.0.0.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-40345"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-86472",
+          "PkgName": "fast-uri",
+          "InstalledVersion": "3.1.7",
+          "FixedVersion": "2.4.7, 3.1.8, 4.1.5",
+          "Severity": "MEDIUM",
+          "Title": "fast-uri: fast-uri: Security bypass due to inconsistent host case normalization",
+          "Description": "fast-uri is a dependency-free RFC 3986 URI parser for Node.js, used by Fastify and ajv. In versions before 2.4.7, from 3.0.0 through 3.1.7, and from 4.0.0 through 4.1.4, fast-uri folds the host to lowercase before it percent-decodes the host, so a percent-encoded uppercase octet such as %41 decodes to a literal A that is never folded. For a scheme-relative reference such as //host there is no scheme, so the host canonicalization that would normally repair this does not run, and parse, normalize, and equal then disagree on the same host. An application that makes a case-sensitive host decision on fast-uri output, for example a host allowlist or denylist that compares the parsed host or uses equal, can be steered past the check with a percent-encoded uppercase octet, and because hostnames are case-insensitive in DNS and HTTP the evading spelling still reaches the host the check meant to gate. The issue is fixed in fast-uri 2.4.7, 3.1.8, and 4.1.5, and users should upgrade to one of those versions or later. As a workaround, compare hosts case-insensitively by lowercasing the parsed host before any allowlist or denylist decision.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-86472"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-86472",
+          "PkgName": "fast-uri",
+          "InstalledVersion": "4.1.4",
+          "FixedVersion": "2.4.7, 3.1.8, 4.1.5",
+          "Severity": "MEDIUM",
+          "Title": "fast-uri: fast-uri: Security bypass due to inconsistent host case normalization",
+          "Description": "fast-uri is a dependency-free RFC 3986 URI parser for Node.js, used by Fastify and ajv. In versions before 2.4.7, from 3.0.0 through 3.1.7, and from 4.0.0 through 4.1.4, fast-uri folds the host to lowercase before it percent-decodes the host, so a percent-encoded uppercase octet such as %41 decodes to a literal A that is never folded. For a scheme-relative reference such as //host there is no scheme, so the host canonicalization that would normally repair this does not run, and parse, normalize, and equal then disagree on the same host. An application that makes a case-sensitive host decision on fast-uri output, for example a host allowlist or denylist that compares the parsed host or uses equal, can be steered past the check with a percent-encoded uppercase octet, and because hostnames are case-insensitive in DNS and HTTP the evading spelling still reaches the host the check meant to gate. The issue is fixed in fast-uri 2.4.7, 3.1.8, and 4.1.5, and users should upgrade to one of those versions or later. As a workaround, compare hosts case-insensitively by lowercasing the parsed host before any allowlist or denylist decision.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-86472"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-86818",
+          "PkgName": "fast-uri",
+          "InstalledVersion": "4.1.4",
+          "FixedVersion": "4.1.5",
+          "Severity": "MEDIUM",
+          "Title": "fast-uri: fast-uri: Mailto header injection via percent-encoded field-name desynchronization",
+          "Description": "fast-uri is a dependency-free RFC 3986 URI parser for Node.js, used by Fastify and ajv, that added a mailto scheme parser in version 4.1.3. In versions 4.1.3 and 4.1.4, the mailto parser compares each query field name to the reserved names to, subject, and body while the name is still percent-encoded, and decodes it only when storing it as a generic header, so a percent-encoded spelling of a reserved field name is not recognized as that field at parse time but is re-emitted as the literal field name when the parsed URI is serialized. An application that validates, logs, or displays the recipient list from the first parse and then serializes the URI and sends it can silently gain an attacker-chosen recipient, and the subject and body fields can be smuggled across the same roundtrip. The issue is fixed in fast-uri 4.1.5, and users should upgrade to 4.1.5 or later. As a workaround, do not act on a mailto URI that fast-uri has re-serialized without first decoding and re-validating its recipient, subject, and body fields.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-86818"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-76169",
+          "PkgName": "fastify",
+          "InstalledVersion": "5.12.1",
+          "FixedVersion": "5.12.2",
+          "Severity": "HIGH",
+          "Title": "fastify: fastify: Authentication bypass via malformed URLs",
+          "Description": "fastify versions >= 4.0.0 and before 5.12.2 can route a malformed URL sent under one plugin prefix to the custom not-found handler of a different sibling plugin, and invoke it without the preHandler hook declared for that handler. The internal not-found router for encapsulated handlers dispatches malformed paths through a single shared handler pointer before URL decoding, ignoring the prefix and skipping the selected handler's normal lifecycle. An unauthenticated attacker can therefore reach an authentication-protected private fallback through an unrelated public prefix and read its full response, bypassing the authentication hook and breaking prefix encapsulation. Users should upgrade to fastify 5.12.2 or later.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-76169"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-84428",
+          "PkgName": "fastify",
+          "InstalledVersion": "5.12.1",
+          "FixedVersion": "5.12.2",
+          "Severity": "HIGH",
+          "Title": "fastify: fastify: Header validation bypass via incomplete schema case normalization",
+          "Description": "fastify versions before 5.12.2 implement the case-insensitive nature of HTTP header names by lowercasing names in a route's header schema before compiling it, but the transformation is incomplete: it lowercases the properties keys and the root-level required array, and does not lowercase the trigger and dependent names inside the JSON Schema Draft 7 dependencies keyword. Because Node stores request header names in lowercase, a canonical-case dependency such as requiring an authentication header whenever a privileged-mode header is present never matches, and the presence assertion is silently skipped. An unauthenticated remote client can therefore send the header that activates a privileged branch while omitting the header the dependency was meant to require, bypassing the conditional check. Users should upgrade to fastify 5.12.2 or later.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-84428"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-84469",
+          "PkgName": "fastify",
+          "InstalledVersion": "5.12.1",
+          "FixedVersion": "5.12.2",
+          "Severity": "HIGH",
+          "Title": "fastify: Fastify: Request validation bypass allows unauthorized operations",
+          "Description": "fastify versions before 5.12.2 decide whether to compile a request schema based on JavaScript truthiness, but JSON Schema Draft 7 defines the boolean false as a valid schema that rejects every instance. When an application assigns false to a route's body, querystring, params, or headers schema to deny all input, fastify treats it as a missing schema, compiles no validator, and runs the route handler on any request. An unauthenticated remote client can therefore reach a handler that a valid deny-all schema was intended to make unreachable, a complete validation bypass that can lead to unauthorized state changes or execution of disabled operations. Users should upgrade to fastify 5.12.2 or later.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-84469"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-84504",
+          "PkgName": "fastify",
+          "InstalledVersion": "5.12.1",
+          "FixedVersion": "5.12.2",
+          "Severity": "HIGH",
+          "Title": "fastify: fastify: Unauthorized state changes and data disclosure via request body replacement",
+          "Description": "fastify versions before 5.12.2 treat the object resolved by a successful Ajv async validator as the value result protocol used by custom validator compilers. If a request that passes its route schema contains a property named value at the root, fastify replaces the entire request body with that property's value before the handler runs, so the handler receives a different object than the one that satisfied the schema. An authenticated low-privilege caller can use this to make nested data replace the validated body and trigger an operation the route schema did not authorize, leading to unauthorized state changes and data disclosure. Users should upgrade to fastify 5.12.2 or later.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-84504"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-92081",
+          "PkgName": "fastify",
+          "InstalledVersion": "5.12.1",
+          "FixedVersion": "5.12.5",
+          "Severity": "MEDIUM",
+          "Title": "fastify: fastify: Denial of Service via unhandled exception on HTTP/2 trailer responses",
+          "Description": "fastify is a fast and low-overhead web framework for Node.js. In versions before 5.12.5, when a route registers a response trailer via reply.trailer() and is served over HTTP/2, fastify unconditionally sets the Transfer-Encoding: chunked header, which is forbidden on HTTP/2, so Node.js throws while serializing the response headers. The exception is not caught and becomes an uncaughtException, so a single unauthenticated HTTP/2 request to any route that uses trailers crashes the server process and drops all in-flight requests, and it can be repeated on every restart. The issue is fixed in fastify 5.12.5, and users should upgrade to 5.12.5 or later. As a workaround, avoid registering response trailers with reply.trailer() on routes served over HTTP/2 until upgrading.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-92081"
+        },
+        {
+          "VulnerabilityID": "GHSA-3f6p-5ww8-9rcr",
+          "PkgName": "mysql2",
+          "InstalledVersion": "3.15.3",
+          "FixedVersion": "3.22.0",
+          "Severity": "HIGH",
+          "Title": "MySQL2: Auth Plugin Downgrade to mysql_clear_password Leaks Plaintext Credentials",
+          "Description": "## Summary\n\nA rogue MySQL server (or MITM) can force mysql2 to send credentials in **plaintext** by requesting an auth switch to `mysql_clear_password`. The driver complies without verifying that TLS is active.\n\n## Details\n\n`mysql_clear_password` is registered as a default standard plugin in `lib/commands/auth_switch.js` (line 21). When a server sends an AuthSwitchRequest (0xFE) requesting `mysql_clear_password`, the driver executes it without checking for TLS. The plugin (`lib/auth_plugins/mysql_clear_password.js`) returns `Buffer.from(password + '\\0')`.\n\nNote: `caching_sha2_password` plugin DOES check for SSL before sending cleartext (line 77). But `mysql_clear_password` has no such guard.\n\n## Attack Scenario\n\n1. Attacker operates rogue MySQL server or performs MITM\n2. Server advertises `caching_sha2_password` in handshake\n3. Client sends hashed auth response\n4. Server replies with AuthSwitchRequest to `mysql_clear_password`\n5. Client sends password in plaintext\n6. Attacker captures plaintext password\n\n## PoC\n\nRogue MySQL server (Node.js, ~80 lines) that captures plaintext passwords from mysql2 clients. Tested against mysql2 3.20.0. Full PoC available on request.\n\n## Suggested Fix\n\nRemove `mysql_clear_password` from `standardAuthPlugins`, or add a guard requiring TLS/unix socket before allowing cleartext auth.\n\n## Impact\n\n- mysql2: 9M weekly downloads\n- Any application connecting without TLS is vulnerable to credential theft\n- Cloud environments with untrusted network paths are especially at risk",
+          "PrimaryURL": "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr"
+        },
+        {
+          "VulnerabilityID": "GHSA-rgwj-5xj2-c3m3",
+          "PkgName": "mysql2",
+          "InstalledVersion": "3.15.3",
+          "FixedVersion": "3.23.1",
+          "Severity": "MEDIUM",
+          "Title": "MySQL2: Unbounded zlib inflate in compressed MySQL protocol handler allows decompression-bomb DoS",
+          "Description": "## Vulnerability Details\n\n**File**: `lib/compressed_protocol.js`\n**Line**: 43 (`zlib.inflate(body, (err, data) => { ... })` inside `handleCompressedPacket`)\n\n### Root Cause\nWhen a connection is created with `compress: true` (and the server advertises `CLIENT_COMPRESS`), every incoming packet is unwrapped by `handleCompressedPacket()` in `lib/compressed_protocol.js`, which calls:\n\n```js\nzlib.inflate(body, (err, data) => { ... });\n```\n\nNo options object (in particular, no `maxOutputLength`) is passed. Node's zlib convenience methods default `maxOutputLength` to `buffer.kMaxLength`, which on this platform is `Number.MAX_SAFE_INTEGER` — i.e. effectively unbounded until the process runs out of memory. The 3-byte \"length of payload before compression\" field in the compressed-packet header is read (`packet.readInt24()`) but is only used to branch on `!== 0`; it is never used to cap or validate the actual inflate output size, and the real decompressed size is determined purely by the attacker-supplied deflate stream.\n\nBecause DEFLATE can reach compression ratios over 1000:1 for crafted repetitive input, an attacker who controls (or MITMs, on a non-TLS connection) the MySQL server endpoint can send a single small compressed packet that expands to gigabytes in the client's memory — a classic decompression-bomb / \"zip bomb\" applied to MySQL's client-compression protocol.\n\n### Attack Scenario\n1. Application connects with `mysql2`/`mysql2/promise` using `compress: true` (a documented option for reducing bandwidth, commonly used for cloud/WAN DB connections).\n2. The connection target is attacker-controlled or attacker-compromised, or an attacker MITMs a non-TLS connection.\n3. Right after authentication succeeds, the malicious endpoint sends one crafted compressed packet whose deflate stream is small on the wire (hundreds of KB) but decompresses to several GB.\n4. `zlib.inflate()` starts allocating memory for the full decompressed output with no ceiling.\n5. The Node.js process's RSS grows uncontrolled until OOM-kill or crash — no query needs to be issued by the client; the malicious packet alone is enough.\n\n### Impact\nDenial of Service of the client application (process crash / OOM) — not the database itself. No authentication bypass or data exposure. Requires `compress: true` plus a malicious/compromised server or MITM position.\n\n### Vulnerable Code\n```js\nfunction handleCompressedPacket(packet) {\n  const connection = this;\n  const deflatedLength = packet.readInt24();\n  const body = packet.readBuffer();\n\n  if (deflatedLength !== 0) {\n    connection.inflateQueue.push((task) => {\n      zlib.inflate(body, (err, data) => {\n        if (err) {\n          connection._handleNetworkError(err);\n          return;\n        }\n        connection._bumpCompressedSequenceId(packet.numPackets);\n        connection._inflatedPacketsParser.execute(data);\n        task.done();\n      });\n    });\n  } else {\n    ...\n  }\n}\n```\n\n### Recommended Fix\n```js\nconst MAX_INFLATED_PACKET_SIZE = 1 * 1024 * 1024 * 1024; // e.g. 1 GiB, ideally configurable\n\nzlib.inflate(body, { maxOutputLength: MAX_INFLATED_PACKET_SIZE }, (err, data) => {\n  if (err) {\n    connection._handleNetworkError(err);\n    return;\n  }\n  ...\n});\n```\n`maxOutputLength` makes `zlib.inflate` abort with `ERR_BUFFER_TOO_LARGE` as soon as the decompressed size would exceed the cap, routing into the exact same (already-existing) `err` → `connection._handleNetworkError(err)` path, so no new error-handling logic is required.\n\n### Verification\nDynamically confirmed on v3.23.0 (HEAD) using a minimal rogue \"MySQL server\" built on node-mysql2's own server-mode helpers (`mysql.createServer`, `Packets.Handshake`, `connection.writeOk()`). The rogue server completes a real handshake advertising `CLIENT_COMPRESS`, then writes one raw compressed frame (509,604 bytes on the wire — a zlib deflate of 500 MB of zero bytes, ratio 1028.8:1) directly to the socket. A normal `mysql.createConnection({ ..., compress: true })` victim client — which never issues any query — had its RSS grow from 74.3 MB to 1115.0 MB after receiving that single packet, before erroring out with `PROTOCOL_UNEXPECTED_PACKET` once the client tried to parse the inflated zero-filled buffer as MySQL packets. The memory allocation happens unconditionally before any content validation.",
+          "PrimaryURL": "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-93749",
+          "PkgName": "source-map-js",
+          "InstalledVersion": "1.2.1",
+          "FixedVersion": "1.2.2",
+          "Severity": "HIGH",
+          "Title": "source-map-js: source-map-js: Denial of Service via malformed indexed source maps",
+          "Description": "source-map-js through 1.2.1 fails to validate the per-section offset line value in indexed source maps, allowing attackers to specify arbitrary numeric values. Attackers can supply extremely large offset line values that cause synchronous event loop blocking for extended periods, preventing the service from handling other requests.",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-93749"
+        }
+      ],
+      "misconfigurations": [],
+      "secrets": []
+    },
+    {
+      "target": "Dockerfile",
+      "type": "dockerfile",
+      "vulnerabilities": [],
+      "misconfigurations": [
+        {
+          "ID": "DS-0026",
+          "Severity": "LOW",
+          "Title": "No HEALTHCHECK defined",
+          "Message": "Add HEALTHCHECK instruction in your Dockerfile",
+          "Resolution": "Add HEALTHCHECK instruction in Dockerfile",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0026"
+        }
+      ],
+      "secrets": []
+    },
+    {
+      "target": "Dockerfile.sales",
+      "type": "dockerfile",
+      "vulnerabilities": [],
+      "misconfigurations": [
+        {
+          "ID": "DS-0002",
+          "Severity": "HIGH",
+          "Title": "Image user should not be 'root'",
+          "Message": "Specify at least 1 USER command in Dockerfile with non-root user as argument",
+          "Resolution": "Add 'USER <non root user name>' line to the Dockerfile",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0002"
+        },
+        {
+          "ID": "DS-0026",
+          "Severity": "LOW",
+          "Title": "No HEALTHCHECK defined",
+          "Message": "Add HEALTHCHECK instruction in your Dockerfile",
+          "Resolution": "Add HEALTHCHECK instruction in Dockerfile",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0026"
+        }
+      ],
+      "secrets": []
+    }
+  ],
+  "database": {
+    "Version": 2,
+    "NextUpdate": "2026-10-11T01:03:02.007870261Z",
+    "UpdatedAt": "2026-10-10T01:03:02.007870471Z",
+    "DownloadedAt": "2026-10-10T06:24:52.441845244Z"
+  }
+}
