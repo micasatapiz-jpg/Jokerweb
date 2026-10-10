@@ -184,7 +184,7 @@ function Cotizar() {
   const advanceMessage = selectedProduct?.pricingMode === 'FIXED' && !usesDemoPrice
     ? ` y coordinar el adelanto de ${money.format(Number(quote?.total ?? 0) * 0.5)}`
     : ' y coordinar el adelanto'
-  const whatsappLink = quote ? createWhatsAppLink({ message: `Hola, vengo desde la web de Joker. Acabo de registrar la solicitud ${quote.number} para ${selectedProduct?.name || 'mi proyecto'}. Quisiera confirmar los detalles${advanceMessage}.` }) : '#'
+  const whatsappLink = quote ? createWhatsAppLink({ message: `¡Hola, Joker! 👋 Registré ${quote.number} para ${selectedProduct?.name || 'mi proyecto'}. Quisiera confirmar los detalles${advanceMessage}. ✅` }) : '#'
 
   return (
     <section className="quote-flow quote-flow--public" aria-labelledby="quote-flow-title">

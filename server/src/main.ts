@@ -3,6 +3,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
 import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
 import { AppModule } from './app.module.js'
 
 async function bootstrap() {
@@ -75,6 +76,11 @@ async function bootstrap() {
         !path.startsWith('/api') &&
         !/\.[a-z0-9]+$/i.test(path)
       ) {
+        const page = `${path.replace(/^\/|\/$/g, '')}/index.html`
+        if (/^\/[a-z0-9-]+(?:\/[a-z0-9-]+)*\/?$/i.test(path) && existsSync(resolve(process.env.WEB_DIST_DIR!, page))) {
+          return reply.type('text/html').sendFile(page)
+        }
+        if (path !== '/') reply.header('X-Robots-Tag', 'noindex')
         return reply.type('text/html').sendFile('index.html')
       }
 

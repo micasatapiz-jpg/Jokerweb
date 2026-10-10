@@ -41,8 +41,8 @@ function PropuestaVisual() {
   const [notice, setNotice] = useState(null)
   const quoteWhatsAppLink = createWhatsAppLink({
     message: description.trim()
-      ? `Hola, vengo desde la web de Joker. Quisiera continuar mi cotización con esta idea: ${description.trim()}`
-      : 'Hola, vengo desde la web de Joker. Quisiera solicitar una cotización para un proyecto publicitario.',
+      ? `¡Hola, Joker! 👋 Quisiera cotizar esta idea: ${description.trim()} ✨`
+      : '¡Hola, Joker! 👋 Tengo un proyecto publicitario. ¿Me ayudan a cotizar? ✨',
   })
 
   const analyze = async (event) => {

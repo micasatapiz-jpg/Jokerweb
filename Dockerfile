@@ -5,9 +5,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY index.html vite.config.js ./
+COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
 ENV VITE_SALES_API_URL=/api
+ARG VITE_SITE_URL
+ENV VITE_SITE_URL=$VITE_SITE_URL
 RUN npm run build
 WORKDIR /app/server
 COPY server/package.json server/package-lock.json ./

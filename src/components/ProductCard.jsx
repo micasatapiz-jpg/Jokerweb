@@ -1,7 +1,7 @@
 import WhatsAppButton from './WhatsAppButton'
 
 function ProductCard({ producto }) {
-  const mensaje = `Hola, quiero cotizar: ${producto.nombre}`
+  const mensaje = `¡Hola, Joker! 👋 Quisiera cotizar ${producto.nombre}. ✨`
 
   return (
     <article className="product-card">

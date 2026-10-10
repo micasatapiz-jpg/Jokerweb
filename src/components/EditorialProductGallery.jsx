@@ -79,7 +79,7 @@ function EditorialProductGallery({ family }) {
               <h2 id="product-quickview-title">{activeProduct.name}</h2>
               <p>{activeProduct.description}</p>
               <WhatsAppButton
-                mensaje={`Hola Joker 👋 Quisiera cotizar ${activeProduct.name}.`}
+                mensaje={`¡Hola, Joker! 👋 Quisiera cotizar ${activeProduct.name}. ✨`}
                 origen={`${family.slug}-${activeProduct.name}`}
                 texto="Cotizar este producto"
               />

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Footer from './components/Footer'
+import Seo from './components/Seo'
 import Navbar from './components/Navbar'
 import WhatsAppButton from './components/WhatsAppButton'
 import Catalogo from './pages/Catalogo'
@@ -32,6 +33,7 @@ function App() {
 
   return (
     <div className={`app ${isSalesApp ? 'app--sales' : ''}`}>
+      <Seo />
       <ScrollToTop />
       {!isSalesApp && <Navbar />}
       <main>
