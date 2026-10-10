@@ -4,6 +4,7 @@ import letrerosImage from '../assets/heroes/letreros-photo-v1.webp'
 import letras3dImage from '../assets/heroes/letras-3d-photo-v1.webp'
 import senaleticaImage from '../assets/heroes/senaletica-photo-v1.webp'
 import vinilesImage from '../assets/heroes/viniles-photo-v1.webp'
+import { buildWhatsAppLink } from '../utils/whatsappLink.js'
 
 export const siteConfig = {
   brandName: 'Joker',
@@ -110,5 +111,5 @@ export const serviceFamilies = [
 
 export function createWhatsAppLink({ service = 'general', message } = {}) {
   const finalMessage = message || whatsappMessages[service] || whatsappMessages.general
-  return `https://wa.me/${siteConfig.whatsappNumber}?text=${encodeURIComponent(finalMessage)}`
+  return buildWhatsAppLink(siteConfig.whatsappNumber, finalMessage)
 }
