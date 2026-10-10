@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CLIPS = [("clip-01", 480), ("clip-02", 192), ("clip-03", 192)]
 GROUP_SIZE = 64
 MAGIC = b"JSEQ001\n"
+# Clip 1's face is left of center; clips 2 and 3 keep their existing framing.
+MOBILE_CROP_POSITION = {"clip-01": .10, "clip-02": .58, "clip-03": .58}
 
 
 def pack_group(task):
@@ -29,7 +31,7 @@ def pack_group(task):
             image = original.convert("RGB")
             if variant == "mobile":
                 width = round(image.height * .75)
-                left = round((image.width - width) * .58)
+                left = round((image.width - width) * MOBILE_CROP_POSITION[clip])
                 image = image.crop((left, 0, left + width, image.height))
             else:
                 image = image.resize((960, 540), Image.Resampling.LANCZOS)

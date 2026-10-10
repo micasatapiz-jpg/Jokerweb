@@ -24,12 +24,13 @@ corresponden a la animación nueva, no a los PNG de la versión de `main`.
   recorrido. No hay muestreo ni sustitución de ilustraciones.
 - Se generan variantes WebP con calidad 85: escritorio a 960 × 540 y móvil
   vertical con recorte a 540 × 720. El móvil conserva la altura original y
-  el encuadre horizontal del 58%. Esta compresión es con pérdida.
+  un encuadre horizontal del 10% en el primer clip para mostrar el rostro,
+  y el 58% existente en los clips segundo y tercero. Esta compresión es con pérdida.
 - Los fotogramas se agrupan de 64 en 64 en 14 archivos binarios por variante.
   El encabezado `JSEQ001` contiene el número de imágenes y sus longitudes.
   El lector verifica límites, cantidades y tamaño completo antes de usarlos.
-- Escritorio descarga 61.217.674 bytes; móvil, 37.683.064 bytes: cerca de un
-  83% y un 89% menos, respectivamente, con todos los fotogramas originales.
+- Escritorio descarga 61.217.674 bytes; móvil, 51.249.150 bytes: cerca de un
+  83% y un 86% menos, respectivamente, con todos los fotogramas originales.
 - Se permiten cuatro descargas simultáneas. La entrada espera la descarga
   completa y la preparación del destino actual, incluso si se hizo scroll
   durante el indicador. No hay un plazo que marque imágenes pendientes

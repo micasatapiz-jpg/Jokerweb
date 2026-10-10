@@ -103,59 +103,59 @@
   ],
   "mobile": [
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-001-ac447677b25116e8.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-001-01150653968a9f4a.bin",
       "start": 0,
       "count": 64,
-      "bytes": 1470208,
+      "bytes": 3533594,
       "sourceSha256": "b71326d27c04a1210be566d425259d6640cd2bcf41fa5fd717d4fcaca0039b05"
     },
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-065-b25138f08163ce4d.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-065-a5996906e1775fb4.bin",
       "start": 64,
       "count": 64,
-      "bytes": 1339428,
+      "bytes": 3445476,
       "sourceSha256": "e07b1d350cc8c4fceb95635d9af6f944876f21c1a2d241e5050af76ff9f39bf1"
     },
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-129-7de84ee45bd83813.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-129-d43974608293467a.bin",
       "start": 128,
       "count": 64,
-      "bytes": 1590634,
+      "bytes": 3658722,
       "sourceSha256": "3077e919ef78229ae1cf1f0b6d5a11d39d8fb9ac6f7f8d5b5451cf8d8452b5a5"
     },
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-193-4da6a2d815cf6563.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-193-ef18950f290d2668.bin",
       "start": 192,
       "count": 64,
-      "bytes": 1846704,
+      "bytes": 3917428,
       "sourceSha256": "edfa60728af512004c9d910a9d72594196fd3ed767a69aa9d633797dc78281b7"
     },
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-257-898f196195be9bc6.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-257-eb7cd9dc06128ed4.bin",
       "start": 256,
       "count": 64,
-      "bytes": 2681786,
+      "bytes": 4500526,
       "sourceSha256": "5e465702fab66d0bdd0e821f633071545dc85d9ef1d4413521acc498bfbc4a93"
     },
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-321-81a7f85df794c64e.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-321-c7de8d1260f66377.bin",
       "start": 320,
       "count": 64,
-      "bytes": 3317696,
+      "bytes": 4713430,
       "sourceSha256": "38ed90a6b1b8f87b1239e338eed52ac43448f601958e4e7fa94dfe9906058e9f"
     },
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-385-dc41dfa5bb44ebac.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-385-a5f0f788174b418d.bin",
       "start": 384,
       "count": 64,
-      "bytes": 2655718,
+      "bytes": 4123486,
       "sourceSha256": "b97a74a8d54c2d80fb8515244f4dd2f40a0b9b0314cc3fabae7a2f9beca27eea"
     },
     {
-      "url": "/secuencias/joker/packed/mobile/clip-01-449-b20550a5b6a48817.bin",
+      "url": "/secuencias/joker/packed/mobile/clip-01-449-d261f626cd5a6c9c.bin",
       "start": 448,
       "count": 32,
-      "bytes": 564816,
+      "bytes": 1140414,
       "sourceSha256": "50550d042f579d8d516e37bb12c1d5abdf61e042485033fe2d696137b16b600f"
     },
     {
