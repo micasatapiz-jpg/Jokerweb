@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { normalizeSiteUrl, organizationSchema, pageSeo } from '../config/seo'
+import { DEFAULT_SITE_URL, normalizeSiteUrl, organizationSchema, pageSeo } from '../config/seo'
 
-const siteUrl = normalizeSiteUrl(import.meta.env.VITE_SITE_URL || '')
+const siteUrl = normalizeSiteUrl(import.meta.env.VITE_SITE_URL || DEFAULT_SITE_URL)
 
 export default function Seo() {
   const { pathname } = useLocation()

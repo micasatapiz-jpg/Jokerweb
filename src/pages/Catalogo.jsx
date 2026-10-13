@@ -30,7 +30,7 @@ function Catalogo() {
           <HeroProductCarousel products={serviceHeroSlides} label="Familias de servicios de Joker" />
         </div>
         <div className="editorial-hero__copy">
-          <p className="eyebrow">Servicios y productos</p>
+          <p className="eyebrow">Publicidad e impresión en Lima</p>
           <h1 id="services-title">Soluciones publicitarias para hacer visible tu marca.</h1>
           <p>
             Diseñamos, producimos, fabricamos e instalamos. Elige el servicio que más se

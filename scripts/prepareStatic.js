@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 // Keep the complete current packs and the final still used for reduced motion.
 // Source frames and old packs stay in Git; they do not need to be publicly served.
 export async function prepareStatic(output = resolve('dist')) {
+  // The asset manifest is used for prerendering, not served to visitors.
+  await rm(resolve(output, '.vite'), { recursive: true, force: true })
   const manifest = JSON.parse(await readFile(new URL('../src/config/sequenceBundles.json', import.meta.url)))
   const allowed = new Set([
     'secuencias/joker/clip-03/frame-192.webp',

@@ -109,7 +109,7 @@ function HeroPresentacion() {
 
         <div className="hero-unified__deck" aria-live="polite">
           <article ref={(element) => { panelesRef.current[0] = element }} className="hero-unified__panel hero-unified__panel--intro" aria-hidden={escena !== 0}>
-            <p>Letreros · Impresión · Viniles · Instalación</p>
+            <p>Publicidad en Lima · Letreros · Letras 3D</p>
             <HeroHeading as="h1" id="hero-title" lines={['HACEMOS VISIBLE', 'TU MARCA.']} className="hero-unified__headline--intro" />
             <div className="hero-unified__actions">
               <WhatsAppButton servicio="general" origen="home-unified" texto="Cotizar por WhatsApp" />

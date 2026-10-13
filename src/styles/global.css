@@ -539,6 +539,9 @@ main {
 .hero-unified__shade { position: absolute; z-index: 2; inset: 0; background: linear-gradient(90deg, rgb(5 6 22 / 74%), transparent 45%, rgb(5 6 22 / 34%)), linear-gradient(180deg, rgb(5 6 22 / 38%), transparent 24%, transparent 70%, rgb(5 6 22 / 70%)); pointer-events: none; }
 .hero-unified__deck { position: absolute; z-index: 5; inset: 0; pointer-events: none; }
 .hero-unified__panel { position: absolute; top: 50%; left: clamp(1.25rem, 5vw, 5rem); width: min(72rem, calc(100% - 2.5rem)); color: var(--joker-white); visibility: hidden; opacity: 0; transform: translateY(-50%); text-shadow: 0 5px 30px rgb(0 0 0 / 62%); }
+/* The prerendered active scene is readable before JavaScript starts. GSAP's
+   inline animation styles take precedence once the page hydrates. */
+.hero-unified__panel[aria-hidden="false"] { visibility: visible; opacity: 1; }
 .hero-unified__panel > p { max-width: 52rem; margin: 0 0 1rem; color: var(--joker-gold); font-family: "Anybody", "Roboto Flex", sans-serif; font-size: clamp(.82rem, 1.15vw, 1rem); font-variation-settings: 'wdth' 105, 'wght' 760; line-height: 1.35; letter-spacing: .13em; text-transform: uppercase; }
 .hero-unified__panel h1, .hero-unified__panel h2 { margin: 0; color: var(--joker-white); text-transform: uppercase; }
 .hero-unified__headline { display: flex; align-items: flex-start; flex-direction: column; width: min(60vw, 55rem); margin-bottom: clamp(1.4rem, 3vh, 2.4rem) !important; font-family: "Anybody", "Roboto Flex", sans-serif; font-size: clamp(3.35rem, 7vw, 7.4rem); font-variation-settings: 'wdth' 84, 'wght' 900; line-height: .78; letter-spacing: -.055em; text-shadow: .03em .04em 0 rgb(7 8 28 / 96%), .055em .065em 0 rgb(242 183 5 / 55%), 0 .18em .5em rgb(0 0 0 / 70%); }

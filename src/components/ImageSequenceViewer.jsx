@@ -51,7 +51,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   const [preparados, setPreparados] = useState(0)
   const [errorCarga, setErrorCarga] = useState(false)
   const [cargaDiscreta, setCargaDiscreta] = useState(false)
-  const [usarFramesMoviles, setUsarFramesMoviles] = useState(() => window.matchMedia(CONSULTA_MOVIL).matches)
+  const [usarFramesMoviles, setUsarFramesMoviles] = useState(() => typeof window !== 'undefined' && window.matchMedia(CONSULTA_MOVIL).matches)
   const paquetes = framePacks?.[usarFramesMoviles ? 'mobile' : 'desktop']
 
   useEffect(() => {

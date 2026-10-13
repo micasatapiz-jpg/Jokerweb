@@ -12,7 +12,7 @@ function Contacto() {
         style={{ '--editorial-photo': `url(${contactoInstalacion})` }}
       >
         <div>
-          <p className="eyebrow">Contacto y cotizaciones</p>
+          <p className="eyebrow">Cotizaciones para negocios en Lima</p>
           <h1 id="contact-title">Tienes una idea.<br />Hagámosla visible.</h1>
         </div>
         <p>

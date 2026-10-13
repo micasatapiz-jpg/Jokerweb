@@ -3,8 +3,8 @@ import test from 'node:test'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
-import { normalizeSiteUrl, pageSeo, publicPages } from './seo.js'
-import { seoPlugin } from '../../scripts/seoPlugin.js'
+import { DEFAULT_SITE_URL, normalizeSiteUrl, organizationSchema, pageSeo, publicPages } from './seo.js'
+import { seoHead, seoPlugin } from '../../scripts/seoPlugin.js'
 
 test('canonical URLs require a public HTTPS origin; private pages stay out of the index', () => {
   assert.equal(normalizeSiteUrl(''), '')
@@ -37,4 +37,17 @@ test('build emits route-specific metadata and a sitemap containing only public U
     }
     assert.ok((await readFile(resolve(root, 'dist/robots.txt'), 'utf8')).includes('Sitemap: https://example.com/sitemap.xml'))
   } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+test('Lima targeting uses the supplied domain without inventing a physical address', () => {
+  assert.equal(DEFAULT_SITE_URL, 'https://jokeperu3d.com')
+  for (const [path, page] of Object.entries(publicPages)) {
+    if (path !== '/politica-privacidad') assert.ok(page.title.includes('Lima'), path)
+  }
+  const schema = organizationSchema(DEFAULT_SITE_URL)
+  assert.equal(schema.areaServed[0].name, 'Lima')
+  assert.equal(schema.telephone, '+51972044482')
+  assert.equal(schema.address, undefined)
+  const head = seoHead('/', DEFAULT_SITE_URL, 'public-token<&"')
+  assert.ok(head.includes('name="google-site-verification" content="public-token&lt;&amp;&quot;"'))
 })

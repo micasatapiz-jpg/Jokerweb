@@ -5,7 +5,7 @@ import { normalizeSiteUrl, organizationSchema, pageSeo, publicPages } from '../s
 const escape = (text) => text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
 const markers = /<!-- joker-seo:start -->[\s\S]*?<!-- joker-seo:end -->/
 
-export function seoHead(pathname, siteUrl) {
+export function seoHead(pathname, siteUrl, verification = '') {
   const meta = pageSeo(pathname, siteUrl)
   const tags = [
     `<title>${escape(meta.title)}</title>`,
@@ -17,12 +17,13 @@ export function seoHead(pathname, siteUrl) {
     '<meta property="og:site_name" content="Joker">',
     '<meta property="og:locale" content="es_PE">',
   ]
+  if (verification) tags.push(`<meta name="google-site-verification" content="${escape(verification)}">`)
   if (meta.canonical) tags.push(`<link rel="canonical" href="${escape(meta.canonical)}">`, `<meta property="og:url" content="${escape(meta.canonical)}">`)
   if (meta.robots.startsWith('index')) tags.push(`<script id="joker-organization" type="application/ld+json">${JSON.stringify(organizationSchema(siteUrl)).replace(/</g, '\\u003c')}</script>`)
   return '<!-- joker-seo:start -->\n' + tags.join('\n') + '\n<!-- joker-seo:end -->'
 }
 
-export function seoPlugin(url) {
+export function seoPlugin(url, verification = '') {
   const siteUrl = normalizeSiteUrl(url)
   let output
   return {
@@ -30,14 +31,14 @@ export function seoPlugin(url) {
     configResolved(config) { output = resolve(config.root, config.build.outDir) },
     transformIndexHtml: {
       order: 'post',
-      handler(html, context) { return html.replace(markers, seoHead(context.originalUrl || '/', siteUrl)) },
+      handler(html, context) { return html.replace(markers, seoHead(context.originalUrl || '/', siteUrl, verification)) },
     },
     async writeBundle() {
       const template = await readFile(resolve(output, 'index.html'), 'utf8')
       for (const path of Object.keys(publicPages).filter((path) => path !== '/')) {
         const directory = resolve(output, path.slice(1))
         await mkdir(directory, { recursive: true })
-        await writeFile(resolve(directory, 'index.html'), template.replace(markers, seoHead(path, siteUrl)))
+        await writeFile(resolve(directory, 'index.html'), template.replace(markers, seoHead(path, siteUrl, verification)))
       }
       const robots = 'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /app\nDisallow: /propuesta-visual\n'
       await writeFile(resolve(output, 'robots.txt'), robots + (siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''))

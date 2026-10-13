@@ -1,15 +1,50 @@
+export const DEFAULT_SITE_URL = 'https://jokeperu3d.com'
+
 export const publicPages = {
-  '/': { title: 'Joker | Letreros, letras 3D e impresión publicitaria en Perú', description: 'Diseñamos, fabricamos e instalamos letreros, letras 3D, banners, viniles y señalética. Haz visible tu marca con Joker y cotiza por WhatsApp.' },
-  '/catalogo': { title: 'Servicios de publicidad e impresión | Joker', description: 'Conoce nuestros letreros, letras corpóreas 3D, gigantografías, banners, viniles, señalética y publicidad para eventos. Cotiza con Joker.' },
-  '/servicios/letreros': { title: 'Letreros luminosos y publicitarios | Joker', description: 'Letreros LED, cajas de luz, acrílico, retroiluminados y fachadas comerciales. Diseño, fabricación e instalación para tu negocio. Cotiza con Joker.' },
-  '/servicios/letras-3d': { title: 'Letras corpóreas 3D en acrílico, PVC y metal | Joker', description: 'Letras 3D en acrílico, PVC, MDF y metal, iluminadas o retroiluminadas. Dale volumen y presencia al nombre de tu marca. Cotiza con Joker.' },
-  '/servicios/gran-formato': { title: 'Gigantografías, banners e impresión de gran formato | Joker', description: 'Impresión de banners, gigantografías y gráficas para campañas, fachadas y eventos. Color y formatos a medida para tu proyecto. Cotiza con Joker.' },
-  '/servicios/viniles': { title: 'Viniles publicitarios y rotulado | Joker', description: 'Viniles adhesivos, microperforados y transparentes para vitrinas, muros y vehículos. Impresión y aplicación para tu marca. Cotiza con Joker.' },
-  '/servicios/senaletica': { title: 'Señalética comercial y corporativa | Joker', description: 'Señalética informativa, corporativa y comercial para interiores y exteriores. Orientación clara y acabados para cada espacio. Cotiza con Joker.' },
-  '/servicios/eventos': { title: 'Publicidad para eventos: backings y roll screens | Joker', description: 'Backings, roll screens, displays, paneles y promocionales para ferias y eventos. Haz destacar tu marca con Joker. Cotiza por WhatsApp.' },
-  '/nosotros': { title: 'Diseño, producción e instalación publicitaria | Joker', description: 'Conoce a Joker: un equipo creativo y de producción publicitaria. Diseñamos, fabricamos e instalamos piezas para hacer visible tu marca.' },
-  '/contacto': { title: 'Contacto y cotizaciones por WhatsApp | Joker', description: 'Cuéntanos tu proyecto publicitario. Contacta a Joker por WhatsApp al +51 972 044 482 para cotizar letreros, impresión, viniles y señalética.' },
-  '/politica-privacidad': { title: 'Política de privacidad | Joker', description: 'Conoce cómo Joker trata los datos personales recibidos en el sitio web y sus canales de atención y cotización.' },
+  "/": {
+    "title": "Letreros publicitarios y letras 3D en Lima | Joker",
+    "description": "Letreros luminosos, letras 3D, gigantografías, viniles y señalética para negocios en Lima. Diseño, fabricación e instalación. Cotiza con Joker por WhatsApp."
+  },
+  "/catalogo": {
+    "title": "Publicidad e impresión para negocios en Lima | Joker",
+    "description": "Servicios de publicidad en Lima: letreros, letras corpóreas 3D, gigantografías, banners, viniles, señalética y piezas para eventos. Cotiza con Joker."
+  },
+  "/servicios/letreros": {
+    "title": "Letreros luminosos y publicitarios en Lima | Joker",
+    "description": "Diseño, fabricación e instalación de letreros LED, cajas de luz, acrílico y retroiluminados para negocios en Lima. Cotiza tu letrero con Joker."
+  },
+  "/servicios/letras-3d": {
+    "title": "Letras 3D y letras corpóreas en Lima | Joker",
+    "description": "Letras 3D en acrílico, PVC, MDF y metal para negocios en Lima. Letras corpóreas iluminadas y retroiluminadas para fachadas e interiores. Cotiza con Joker."
+  },
+  "/servicios/gran-formato": {
+    "title": "Gigantografías y banners en Lima | Joker",
+    "description": "Impresión de gigantografías, banners y gráficas de gran formato para campañas, fachadas y eventos en Lima. Cotiza tu proyecto con Joker."
+  },
+  "/servicios/viniles": {
+    "title": "Viniles publicitarios y rotulado en Lima | Joker",
+    "description": "Viniles adhesivos, microperforados y transparentes para vitrinas, muros y vehículos en Lima. Diseño y rotulado para tu negocio. Cotiza con Joker."
+  },
+  "/servicios/senaletica": {
+    "title": "Señalética comercial y corporativa en Lima | Joker",
+    "description": "Señalética informativa, corporativa y comercial para oficinas y negocios en Lima. Placas, directorios y señales para interiores y exteriores."
+  },
+  "/servicios/eventos": {
+    "title": "Publicidad para eventos y backings en Lima | Joker",
+    "description": "Backings, roll screens, displays, paneles y promocionales para ferias, activaciones y eventos en Lima. Diseño y producción con Joker."
+  },
+  "/nosotros": {
+    "title": "Diseño y producción publicitaria para Lima | Joker",
+    "description": "Conoce a Joker: diseño, fabricación e instalación de piezas publicitarias para negocios en Lima. Atención comercial por WhatsApp y presencia en Huancayo."
+  },
+  "/contacto": {
+    "title": "Cotiza publicidad y letreros en Lima | Joker",
+    "description": "Cotiza letreros, letras 3D, gigantografías, viniles y señalética para tu negocio en Lima. Contacta a Joker por WhatsApp al +51 972 044 482."
+  },
+  "/politica-privacidad": {
+    "title": "Política de privacidad | Joker",
+    "description": "Conoce cómo Joker trata los datos personales recibidos en el sitio web y sus canales de atención y cotización."
+  }
 }
 
 export function normalizeSiteUrl(value = '') {
@@ -35,6 +70,10 @@ export function organizationSchema(siteUrl) {
   return {
     '@context': 'https://schema.org', '@type': 'Organization', name: 'Joker',
     ...(siteUrl ? { url: siteUrl + '/' } : {}),
+    areaServed: [
+      { '@type': 'City', name: 'Lima', containedInPlace: { '@type': 'Country', name: 'Perú' } },
+      { '@type': 'City', name: 'Huancayo', containedInPlace: { '@type': 'Country', name: 'Perú' } },
+    ],
     telephone: '+51972044482', email: 'jokerstudio.pe@gmail.com',
     contactPoint: { '@type': 'ContactPoint', telephone: '+51972044482', contactType: 'customer service', availableLanguage: 'Spanish' },
   }

@@ -1,6 +1,9 @@
 {
 	auto_https off
 	admin off
+	servers {
+		protocols h1
+	}
 }
 
 :{$PORT:3000} {
@@ -20,12 +23,18 @@
 	@write not method GET HEAD
 	@immutable path /assets/* /secuencias/joker/packed/*
 	@still path /secuencias/joker/clip-03/frame-192.webp
+	@www host www.jokeperu3d.com
+	@multipleRanges header_regexp Range ,
 
 	route {
 		header Cache-Control "no-cache"
+		redir @www https://jokeperu3d.com{uri} 308
 		respond @internal "No encontrado" 404
 		respond @hidden "No encontrado" 404
 		respond @write "Método no permitido" 405
+		# This landing needs only single ranges. Reject multi-range requests before
+		# Go's ServeContent to mitigate CVE-2026-78667 while retaining normal 206s.
+		respond @multipleRanges "Solicitud de rango no admitida" 400
 		respond /healthz "ok" 200
 		header @immutable Cache-Control "public, max-age=31536000, immutable"
 		header @still Cache-Control "public, max-age=86400"

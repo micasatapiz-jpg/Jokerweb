@@ -78,9 +78,9 @@ function Letreros() {
       <header className="signs-hero signs-hero--editorial">
         <div className="signs-hero__copy">
           <Link to="/catalogo" className="signs-back">← Volver a servicios</Link>
-          <p className="eyebrow">Letreros luminosos y publicitarios</p>
+          <p className="eyebrow">Letreros luminosos y publicitarios en Lima</p>
           <h1>Tu marca, visible desde todos los ángulos.</h1>
-          <p>Letreros con volumen e iluminación para destacar de día y de noche.</p>
+          <p>Diseñamos, fabricamos e instalamos letreros con volumen e iluminación para negocios en Lima.</p>
           <div className="signs-hero__actions">
             <WhatsAppButton
               servicio="letreros"

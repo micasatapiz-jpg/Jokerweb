@@ -73,5 +73,6 @@ for variant in ['desktop', 'mobile']:
     assert 'immutable' in headers['Cache-Control'] and not body
     status, _, body = request(pack['url'], headers={'Range': 'bytes=0-7'})
     assert status == 206 and body == b'JSEQ001\n'
+    assert request(pack['url'], headers={'Range': 'bytes=0-7,10-15'})[0] == 400
 assert request('/secuencias/joker/clip-03/frame-192.webp')[0] == 200
 print('PASS: public pages, security headers, private route isolation, traversal/dotfiles, methods, gzip, cache revalidation, packs and reduced-motion still.')
