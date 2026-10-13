@@ -1077,22 +1077,44 @@ main {
 .hero-unified__contact-data { font-family: "Roboto Flex", Inter, sans-serif; }
 
 @media (max-width: 1180px) {
-  .navbar { --navbar-height: 7rem; display: flex; padding: .4rem 1.25rem; }
-  .navbar__brand { left: auto; }
-  .navbar__brand { align-items: flex-start; flex-direction: column; gap: .15rem; }
-  .navbar__brand span { font-size: .72rem; }
-  .navbar__toggle { position: absolute; right: 1.25rem; display: block; padding: .75rem; }
-  .navbar__toggle span { width: 3.4rem; height: 4px; margin: .55rem 0; }
-  .navbar__menu { position: absolute; z-index: 10; top: 100%; right: 0; left: 0; display: none; align-items: stretch; flex-direction: column; gap: 1rem; padding: 1.5rem; border-top: 1px solid rgb(78 216 196 / 16%); background: rgb(13 12 43 / 98%); box-shadow: 0 22px 40px rgb(0 0 0 / 35%); }
+  .navbar { --navbar-height: 6.4rem; display: flex; justify-content: space-between; gap: 1rem; padding: .4rem clamp(1rem, 3.5vw, 1.75rem); }
+  .navbar__brand { left: auto; align-items: flex-start; flex-direction: column; gap: .15rem; }
+  .navbar__brand span { font-size: .7rem; }
+  .navbar__toggle { position: static; display: grid; flex: 0 0 auto; width: 3.65rem; height: 3.65rem; margin-left: auto; padding: .45rem; place-content: center; }
+  .navbar__toggle span { width: 2.75rem; height: 3px; margin: .28rem 0; transform-origin: center; transition: opacity 180ms ease, transform 180ms ease; }
+  .navbar__toggle[aria-expanded='true'] span:nth-child(1) { transform: translateY(.59rem) rotate(45deg); }
+  .navbar__toggle[aria-expanded='true'] span:nth-child(2) { opacity: 0; }
+  .navbar__toggle[aria-expanded='true'] span:nth-child(3) { transform: translateY(-.59rem) rotate(-45deg); }
+  .navbar__menu {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + .55rem);
+    right: clamp(1rem, 3.5vw, 1.75rem);
+    left: auto;
+    display: none;
+    align-items: stretch;
+    flex-direction: column;
+    width: min(25rem, calc(100vw - 2rem));
+    gap: .55rem;
+    padding: 1rem 1.25rem 1.25rem;
+    border: 1px solid rgb(78 216 196 / 16%);
+    background: rgb(13 12 43 / 98%);
+    box-shadow: 0 22px 40px rgb(0 0 0 / 35%);
+    backdrop-filter: blur(18px);
+  }
   .navbar__menu--open { display: flex; }
-  .navbar__links { align-items: stretch; flex-direction: column; gap: .45rem; }
-  .navbar__links a { padding: 1rem 0; font-size: 1.64rem; text-align: center; }
-  .whatsapp-button.navbar__quote { position: static; padding: 1.2rem 1.5rem; font-size: 1.4rem; text-align: center; }
-  .app:has(.hero-presentacion) .navbar { --navbar-height: 7rem; gap: 2rem; padding: .4rem 1.25rem; }
+  .navbar__links { align-items: stretch; flex-direction: column; gap: 0; }
+  .navbar__links li { display: flex; border-bottom: 1px solid rgb(255 255 255 / 8%); }
+  .navbar__links li:last-child { border-bottom: 0; }
+  .navbar__links a { width: 100%; padding: .92rem .2rem; font-size: 1.12rem; text-align: left; }
+  .navbar__links a::after { right: auto; left: .2rem; width: 0; }
+  .navbar__links a:hover::after, .navbar__links a.active::after { right: auto; left: .2rem; width: 2.35rem; }
+  .whatsapp-button.navbar__quote { position: static; width: 100%; margin-top: .45rem; padding: .95rem 1.25rem; font-size: 1.05rem; text-align: center; }
+  .app:has(.hero-presentacion) .navbar { --navbar-height: 6.4rem; gap: 1rem; padding: .4rem clamp(1rem, 3.5vw, 1.75rem); }
   .app:has(.hero-presentacion) .navbar__brand { left: auto; }
-  .app:has(.hero-presentacion) .navbar__links { gap: .45rem; }
-  .app:has(.hero-presentacion) .navbar__links a { padding: 1rem 0; font-size: 1.64rem; }
-  .app:has(.hero-presentacion) .whatsapp-button.navbar__quote { padding: 1.2rem 1.5rem; font-size: 1.4rem; }
+  .app:has(.hero-presentacion) .navbar__links { gap: 0; }
+  .app:has(.hero-presentacion) .navbar__links a { padding: .92rem .2rem; font-size: 1.12rem; }
+  .app:has(.hero-presentacion) .whatsapp-button.navbar__quote { padding: .95rem 1.25rem; font-size: 1.05rem; }
   .hero-presentacion__scroll-hint { right: auto; bottom: 4rem; left: 1rem; }
   .hero-presentacion__escenas { right: 1rem; bottom: 1.35rem; left: 1rem; gap: .5rem; }
   .hero-presentacion__escenas li { gap: 0; font-size: 0; }
@@ -1104,6 +1126,28 @@ main {
 }
 
 @media (max-width: 700px) {
+  .navbar { --navbar-height: 5.85rem; padding: .35rem 1rem; }
+  .navbar__brand strong { font-size: 1.95rem; }
+  .navbar__brand span { font-size: .58rem; letter-spacing: .16em; }
+  .navbar__toggle { width: 3.25rem; height: 3.25rem; }
+  .navbar__toggle span { width: 2.4rem; height: 3px; margin: .24rem 0; }
+  .navbar__toggle[aria-expanded='true'] span:nth-child(1) { transform: translateY(.51rem) rotate(45deg); }
+  .navbar__toggle[aria-expanded='true'] span:nth-child(3) { transform: translateY(-.51rem) rotate(-45deg); }
+  .navbar__menu {
+    top: calc(100% + .4rem);
+    right: .85rem;
+    width: calc(100vw - 1.7rem);
+    max-height: calc(100svh - var(--navbar-height) - 1rem);
+    overflow-y: auto;
+    padding: .85rem 1rem 1rem;
+  }
+  .navbar__links a { padding: .82rem .15rem; font-size: 1.03rem; }
+  .navbar__links a::after { left: .15rem; }
+  .navbar__links a:hover::after, .navbar__links a.active::after { left: .15rem; width: 2.15rem; }
+  .whatsapp-button.navbar__quote { margin-top: .35rem; padding: .88rem 1rem; font-size: 1rem; }
+  .app:has(.hero-presentacion) .navbar { --navbar-height: 5.85rem; padding: .35rem 1rem; }
+  .app:has(.hero-presentacion) .navbar__links a { padding: .82rem .15rem; font-size: 1.03rem; }
+  .app:has(.hero-presentacion) .whatsapp-button.navbar__quote { padding: .88rem 1rem; font-size: 1rem; }
   .footer { padding: 0 1.25rem 5.5rem; }
   .footer__main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.5rem 1.5rem; padding: 3rem 0 2.5rem; }
   .footer__brand { grid-column: 1 / -1; }
