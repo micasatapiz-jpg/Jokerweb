@@ -89,7 +89,9 @@ main {
 .app:has(.hero-presentacion) .whatsapp-button--floating { display: none; }
 .hero-presentacion { position: relative; color: var(--joker-white); background: var(--joker-dark); }
 .image-sequence { position: relative; height: var(--sequence-height); background: var(--joker-dark); }
-.image-sequence__sticky { position: sticky; top: 0; overflow: hidden; width: 100%; height: 100vh; height: 100dvh; background: var(--joker-dark); isolation: isolate; }
+/* Cover the largest viewport from the first swipe. Dynamic viewport units can
+   update late during mobile toolbar animations and resize/crop the canvas. */
+.image-sequence__sticky { position: sticky; top: 0; overflow: hidden; width: 100%; height: 100vh; height: 100lvh; background: var(--joker-dark); isolation: isolate; }
 .image-sequence__canvas { position: absolute; z-index: 0; inset: 0; display: block; width: 100%; height: 100%; user-select: none; }
 .image-sequence__loading { position: absolute; z-index: 30; inset: 0; display: grid; place-items: center; overflow: hidden; color: var(--joker-gold); background: var(--joker-dark); }
 .image-sequence__loading::before { position: absolute; inset: 0; background: radial-gradient(circle at 50% 48%, rgb(78 216 196 / 10%), transparent 38%); content: ''; pointer-events: none; }
@@ -521,7 +523,7 @@ main {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .image-sequence { height: 100vh !important; height: 100dvh !important; }
+  .image-sequence { height: 100vh !important; height: 100lvh !important; }
 }
 
 /* Contenido comercial bajo la experiencia principal */
@@ -594,6 +596,11 @@ main {
 
 @media (max-width: 900px) {
   .hero-presentacion--unified .image-sequence__canvas { opacity: .63; }
+  /* Keep controls inside the initially visible area without resizing the
+     background or moving the copy as the browser toolbar hides. */
+  .hero-unified__deck { bottom: auto; height: 100svh; }
+  .hero-unified__counter { bottom: calc(100% - 100svh + 2.2rem); }
+  .hero-unified__hint { bottom: calc(100% - 100svh + 2.35rem); }
   .hero-unified__background img { height: 165%; }
   .hero-unified__shade { background: linear-gradient(180deg, rgb(5 6 22 / 36%), transparent 34%, rgb(5 6 22 / 84%) 82%); }
   .hero-unified__panel { top: auto; right: 1rem; bottom: 5.2rem; left: 1rem; width: auto; transform: none; }

@@ -60,6 +60,30 @@ El fondo ilustrado también se sirve como WebP. Ver `docs/seguridad-y-costes.md`
 
 ## Regeneración y comprobaciones
 
+### Pantalla completa en móviles
+
+El escenario sticky usa `100lvh` (con `100vh` como respaldo). Cubre desde
+el inicio el área máxima del navegador sin redimensionar la imagen cuando
+se oculta la barra de dirección. El ajuste anterior con `100dvh` podía
+actualizarse tarde durante esa transición y disparaba un recálculo del
+recorrido en cada cambio de altura, produciendo una franja y un salto.
+
+En móviles, el contenido y el contador se sitúan dentro de `100svh` para
+seguir accesibles con la barra visible y conservar su posición al ocultarla.
+El observador solo recalcula el recorrido si cambia realmente el tamaño
+del escenario, por ejemplo al girar el teléfono. El final del recorrido
+usa la altura de ese mismo escenario: el último fotograma precede al footer.
+
+Validación local con Chromium: pantallas 390×844, 412×915, 844×390 y
+1440×900; scroll inicial, avance, retroceso, final y movimiento reducido.
+La emulación CDP `Emulation.setSmallViewportHeightDifferenceOverride`
+se aplicó después de navegar, con diferencias de 124, 160 y 64 píxeles
+entre viewport pequeño y grande. Se comprobaron cobertura, tamaño estable
+del canvas, controles dentro del viewport pequeño y footer después del
+último fotograma. La rotación también redimensiona correctamente el canvas.
+Esta emulación no reproduce la animación de la barra de un teléfono físico;
+la comprobación final en Android requiere el despliegue de esta versión.
+
 ```sh
 python3 scripts/pack_scroll_frames.py
 node --test src/services/sequenceFrameStore.test.js src/utils/framePacks.test.js

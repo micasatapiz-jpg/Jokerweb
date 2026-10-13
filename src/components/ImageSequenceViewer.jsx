@@ -231,11 +231,16 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     ajustarCanvas()
     window.addEventListener('resize', ajustarCanvas, { passive: true })
-    // Mobile browser controls change the visible height while scrolling. Keep
-    // the canvas and scroll endpoint aligned with the actual sticky screen.
+    // The sticky screen uses a stable large viewport. Only a real size change
+    // (such as rotation) should redraw the canvas and refresh the scroll range.
     const pantalla = canvas.parentElement
+    let anchoPantalla = pantalla.offsetWidth
+    let altoPantalla = pantalla.offsetHeight
     const observarPantalla = new ResizeObserver(() => {
       if (!vivo) return
+      if (pantalla.offsetWidth === anchoPantalla && pantalla.offsetHeight === altoPantalla) return
+      anchoPantalla = pantalla.offsetWidth
+      altoPantalla = pantalla.offsetHeight
       ajustarCanvas()
       ScrollTrigger.refresh()
     })
