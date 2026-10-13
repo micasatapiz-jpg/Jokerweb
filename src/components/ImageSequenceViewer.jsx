@@ -231,6 +231,15 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     ajustarCanvas()
     window.addEventListener('resize', ajustarCanvas, { passive: true })
+    // Mobile browser controls change the visible height while scrolling. Keep
+    // the canvas and scroll endpoint aligned with the actual sticky screen.
+    const pantalla = canvas.parentElement
+    const observarPantalla = new ResizeObserver(() => {
+      if (!vivo) return
+      ajustarCanvas()
+      ScrollTrigger.refresh()
+    })
+    observarPantalla.observe(pantalla)
 
     const prepare = async () => {
       try {
@@ -286,6 +295,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     const release = () => {
       vivo = false
+      observarPantalla.disconnect()
       cancelAnimationFrame(dibujoPendiente)
       almacen.dispose()
     }
@@ -355,7 +365,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
       ScrollTrigger.create({
         trigger: contenedor,
         start: 'top top',
-        end: 'bottom bottom',
+        end: () => `+=${Math.max(contenedor.offsetHeight - pantalla.offsetHeight, 1)}`,
         invalidateOnRefresh: true,
         onUpdate: (instancia) => sincronizarScroll(instancia.progress),
         onRefresh: (instancia) => sincronizarScroll(instancia.progress, true),
