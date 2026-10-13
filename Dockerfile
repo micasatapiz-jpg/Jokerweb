@@ -3,8 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 # Optional build-only CA for environments with an HTTPS proxy. Never disable TLS
 # verification or put the proxy certificate in the production image.
-RUN --mount=type=secret,id=build_ca \
-    if [ -f /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi; npm ci --no-audit --fetch-retries=1 --fetch-timeout=30000
+RUN npm ci --no-audit --fetch-retries=1 --fetch-timeout=30000
 COPY index.html vite.config.js ./
 COPY scripts ./scripts
 COPY src ./src
