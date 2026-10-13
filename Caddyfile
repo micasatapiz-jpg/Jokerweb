@@ -23,12 +23,12 @@
 	@write not method GET HEAD
 	@immutable path /assets/* /secuencias/joker/packed/*
 	@still path /secuencias/joker/clip-03/frame-192.webp
-	@www host www.jokeperu3d.com
+	@www host www.jokerperu3d.com
 	@multipleRanges header_regexp Range ,
 
 	route {
 		header Cache-Control "no-cache"
-		redir @www https://jokeperu3d.com{uri} 308
+		redir @www https://jokerperu3d.com{uri} 308
 		respond @internal "No encontrado" 404
 		respond @hidden "No encontrado" 404
 		respond @write "Método no permitido" 405
