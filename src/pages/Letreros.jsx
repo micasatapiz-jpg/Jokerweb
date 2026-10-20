@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import EditorialProductGallery from '../components/EditorialProductGallery'
 import HeroProductCarousel from '../components/HeroProductCarousel'
 import WhatsAppButton from '../components/WhatsAppButton'
+import ServiceGuide from '../components/ServiceGuide'
 import bastidorPublicitario from '../assets/productos/letreros/bastidor-publicitario-photo-v1.webp'
 import cajaLuz from '../assets/productos/letreros/caja-luz-photo-v1.webp'
 import fachadaComercial from '../assets/productos/letreros/fachada-comercial-photo-v1.webp'
@@ -79,7 +80,7 @@ function Letreros() {
         <div className="signs-hero__copy">
           <Link to="/catalogo" className="signs-back">← Volver a servicios</Link>
           <p className="eyebrow">Letreros luminosos y publicitarios en Lima</p>
-          <h1>Tu marca, visible desde todos los ángulos.</h1>
+          <h1>Letreros luminosos y publicitarios en Lima</h1>
           <p>Diseñamos, fabricamos e instalamos letreros con volumen e iluminación para negocios en Lima.</p>
           <div className="signs-hero__actions">
             <WhatsAppButton
@@ -98,8 +99,10 @@ function Letreros() {
       <div id="productos-letreros">
         <EditorialProductGallery family={family} />
       </div>
+      <ServiceGuide slug="letreros" />
     </div>
   )
 }
 
 export default Letreros
+
