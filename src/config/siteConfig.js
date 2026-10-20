@@ -1,9 +1,9 @@
-import eventosImage from '../assets/heroes/eventos-photo-v1.webp'
-import granFormatoImage from '../assets/heroes/gran-formato-photo-v1.webp'
-import letrerosImage from '../assets/heroes/letreros-photo-v1.webp'
-import letras3dImage from '../assets/heroes/letras-3d-photo-v1.webp'
-import senaleticaImage from '../assets/heroes/senaletica-photo-v1.webp'
-import vinilesImage from '../assets/heroes/viniles-photo-v1.webp'
+import eventosImage from '../assets/hero-eventos-v2.webp'
+import granFormatoImage from '../assets/hero-gran-formato-v2.webp'
+import letrerosImage from '../assets/hero-letreros-v2.webp'
+import letras3dImage from '../assets/hero-letras-3d-v2.webp'
+import senaleticaImage from '../assets/hero-senaletica-v2.webp'
+import vinilesImage from '../assets/hero-viniles-v2.webp'
 import { buildWhatsAppLink } from '../utils/whatsappLink.js'
 
 export const siteConfig = {
@@ -112,5 +112,6 @@ export function createWhatsAppLink({ service = 'general', message } = {}) {
   const finalMessage = message || whatsappMessages[service] || whatsappMessages.general
   return buildWhatsAppLink(siteConfig.whatsappNumber, finalMessage)
 }
+
 
 
