@@ -24,7 +24,7 @@ function ProductosFamilia() {
         </div>
         <div className="editorial-hero__copy">
           <Link to="/catalogo" className="family-back">← Volver a servicios</Link>
-          <p className="eyebrow">{family.eyebrow} en Lima</p>
+          <p className="eyebrow">Materiales y acabados para tu proyecto</p>
           <h1>{serviceContent[family.slug]?.heading || family.title}</h1>
           <div className="family-hero__footer">
             <p>{family.description}</p>
@@ -40,4 +40,5 @@ function ProductosFamilia() {
 }
 
 export default ProductosFamilia
+
 

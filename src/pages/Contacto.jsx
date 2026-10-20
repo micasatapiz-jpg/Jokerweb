@@ -12,7 +12,7 @@ function Contacto() {
         style={{ '--editorial-photo': `url(${contactoInstalacion})` }}
       >
         <div>
-          <p className="eyebrow">Cotizaciones para negocios en Lima</p>
+          <p className="eyebrow">Cotiza tu proyecto publicitario</p>
           <h1 id="contact-title">Tienes una idea.<br />Hagámosla visible.</h1>
         </div>
         <p>
@@ -28,7 +28,7 @@ function Contacto() {
         <div>
           <span>Canal principal</span>
           <h2>Cuéntanos tu proyecto por WhatsApp.</h2>
-          <p>Foto + medidas aproximadas + idea = empezamos.</p>
+          <p>Comparte fotos, medidas aproximadas, ciudad y fecha en que lo necesitas. Si tienes logo o una referencia, envíalos también.</p>
         </div>
         <WhatsAppButton servicio="general" origen="contact" texto="Cotizar por WhatsApp" />
       </div>
@@ -40,7 +40,7 @@ function Contacto() {
         <article>
           <span>WhatsApp y llamadas</span>
           <a href={`tel:${siteConfig.phoneNumber}`}>{siteConfig.phoneDisplay}</a>
-          <p>Consultas, cotizaciones y coordinación comercial.</p>
+          <p>Atención virtual de 9 a. m. a 7 p. m.</p>
         </article>
         <article>
           <span>Correo</span>
@@ -48,27 +48,40 @@ function Contacto() {
           <p>Empresas, cotizaciones y documentación.</p>
         </article>
         <article>
-          <span>Lima</span>
+          <span>Ubicación</span>
           <strong>{siteConfig.locations.lima}</strong>
           <p>No contamos con atención presencial abierta al público en Lima.</p>
         </article>
         <article>
-          <span>Huancayo</span>
-          <strong>{siteConfig.locations.huancayo}</strong>
-          <p>La dirección completa se publicará cuando quede confirmada.</p>
+          <span>Cobertura</span>
+          <strong>Envíos a todo el Perú.</strong>
+          <p>Instalaciones previa coordinación. Confirma costo de transporte, acceso y montaje en tu cotización.</p>
         </article>
       </div>
 
       <section className="social-contact" aria-labelledby="social-contact-title">
-        <p className="section-kicker">Procesos, trabajos y novedades</p>
-        <h2 id="social-contact-title">Así se hace Joker.</h2>
+        <p className="section-kicker">Antes de comenzar</p>
+        <h2 id="social-contact-title">Una cotización clara, desde el inicio.</h2>
         <p>
-          Síguenos para ver cómo diseñamos, imprimimos, fabricamos e instalamos cada proyecto.
+          El costo depende de las medidas, materiales, acabado, cantidad y lugar de instalación.
+          Todo trabajo se realiza con el 50 % de adelanto. Los trabajos de letras tienen
+          un año de garantía; consulta su alcance y condiciones en la cotización.
+          El plazo y el pago del saldo se coordinan para cada pedido.
         </p>
         <div>
-          <span>TikTok · {siteConfig.social.tiktok.label}</span>
-          <span>Facebook · {siteConfig.social.facebook.label}</span>
-          <span>{siteConfig.social.instagram.label}</span>
+          <span>Atendemos empresas y al sector público</span>
+          <span>Contamos con RNP</span>
+          <span>Entrega y montaje según cotización</span>
+        </div>
+      </section>
+      <section className="social-contact" aria-labelledby="social-links-title">
+        <p className="section-kicker">Canales oficiales</p>
+        <h2 id="social-links-title">Sigue a Joker.</h2>
+        <p>Encuentra nuestras novedades en Instagram, TikTok y Facebook.</p>
+        <div>
+          {Object.entries(siteConfig.social).filter(([, social]) => social.url).map(([key, social]) => (
+            <a className="text-link" key={key} href={social.url} target="_blank" rel="noreferrer">{social.label} ↗</a>
+          ))}
         </div>
       </section>
     </section>
@@ -76,3 +89,4 @@ function Contacto() {
 }
 
 export default Contacto
+

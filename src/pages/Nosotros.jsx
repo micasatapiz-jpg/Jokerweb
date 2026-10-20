@@ -15,8 +15,8 @@ function Nosotros() {
           <h1 id="about-title">Hacemos visible tu marca.</h1>
         </div>
         <p>
-          Somos un equipo creativo y de producción publicitaria que transforma ideas en
-          piezas capaces de hacerse notar.
+          En Joker desarrollamos letreros, letras corpóreas, impresión de gran formato,
+          viniles y señalética para que tu negocio se reconozca desde la fachada hasta el interior.
         </p>
       </header>
 
@@ -24,9 +24,10 @@ function Nosotros() {
         <p className="section-kicker">De la idea al espacio</p>
         <h2 id="about-statement-title">Pensamos, fabricamos y colocamos.</h2>
         <p>
-          Trabajamos entre diseño, impresión, estructuras, materiales, máquinas e
-          instalación para llevar cada proyecto desde la pantalla hasta el lugar donde
-          realmente importa: frente a las personas.
+          Partimos de lo que necesitas comunicar y del espacio donde se verá tu marca.
+          Revisamos medidas, distancia de lectura, iluminación y superficie para proponer
+          materiales y acabados adecuados. Comparte fotos del lugar, tu logo y la fecha
+          que tienes en mente para comenzar a definir el proyecto.
         </p>
       </section>
 
@@ -34,21 +35,27 @@ function Nosotros() {
         <article>
           <img src={procesoDiseno} alt="Diseño de un proyecto publicitario con muestras de materiales" loading="lazy" decoding="async" />
           <span>01</span>
-          <div><strong>Diseñamos</strong><p>Convertimos una necesidad comercial en una propuesta visual clara.</p></div>
+          <div><strong>Diseñamos</strong><p>Organizamos tu logo, textos y colores para que el mensaje se lea en el lugar donde irá instalado.</p></div>
         </article>
         <article>
           <img src={procesoProduccion} alt="Fabricación de letras corpóreas con iluminación LED" loading="lazy" decoding="async" />
           <span>02</span>
-          <div><strong>Producimos</strong><p>Elegimos materiales y acabados que funcionan en el espacio real.</p></div>
+          <div><strong>Producimos</strong><p>Definimos material, tamaño, acabado e iluminación según el uso interior o exterior de cada pieza.</p></div>
         </article>
         <article>
           <img src={procesoInstalacion} alt="Instalación de un letrero luminoso en una fachada comercial" loading="lazy" decoding="async" />
           <span>03</span>
-          <div><strong>Instalamos</strong><p>Cerramos el proceso cuidando presencia, resistencia y terminación.</p></div>
+          <div><strong>Instalamos</strong><p>Coordinamos la instalación según ubicación, acceso y superficie. Confirma su alcance e inclusión en tu cotización.</p></div>
         </article>
       </div>
+      <section className="about-page__statement" aria-labelledby="about-coverage-title">
+        <p className="section-kicker">Lima, Perú</p>
+        <h2 id="about-coverage-title">Tu proyecto, donde lo necesitas.</h2>
+        <p>Atendemos de manera virtual de 9 a. m. a 7 p. m. y enviamos a todo el Perú. Las instalaciones se realizan previa coordinación. Trabajamos con empresas y entidades públicas; contamos con RNP.</p>
+      </section>
     </section>
   )
 }
 
 export default Nosotros
+

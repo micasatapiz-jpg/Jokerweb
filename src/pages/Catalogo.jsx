@@ -33,8 +33,9 @@ function Catalogo() {
           <p className="eyebrow">Publicidad e impresión en Lima</p>
           <h1 id="services-title">Soluciones publicitarias para hacer visible tu marca.</h1>
           <p>
-            Diseñamos, producimos, fabricamos e instalamos. Elige el servicio que más se
-            parece a tu proyecto y escríbenos por WhatsApp para cotizarlo.
+            Encuentra letreros, letras 3D, impresión de gran formato, viniles y señalética.
+            Elige una categoría o envíanos una foto del espacio: te ayudamos a definir
+            materiales, medidas y acabado. La instalación se coordina según el proyecto y la ubicación.
           </p>
         </div>
       </header>
@@ -63,3 +64,4 @@ function Catalogo() {
 }
 
 export default Catalogo
+
