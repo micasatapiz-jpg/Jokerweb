@@ -40,7 +40,7 @@ function Contacto() {
         <article>
           <span>WhatsApp y llamadas</span>
           <a href={`tel:${siteConfig.phoneNumber}`}>{siteConfig.phoneDisplay}</a>
-          <p>Atención virtual de 9 a. m. a 7 p. m.</p>
+          <p>Atención virtual de lunes a sábado, de 9 a. m. a 7 p. m.</p>
         </article>
         <article>
           <span>Correo</span>
