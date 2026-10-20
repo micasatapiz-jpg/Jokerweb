@@ -8,7 +8,7 @@ import cajaLuz from '../assets/productos/letreros/caja-luz-photo-v1.webp'
 import fachadaComercial from '../assets/productos/letreros/fachada-comercial-photo-v1.webp'
 import letreroAcrilico from '../assets/productos/letreros/letrero-acrilico-photo-v1.webp'
 import letrasCorporeas from '../assets/productos/letreros/letras-corporeas-led-photo-v1.webp'
-import retroiluminado from '../assets/productos/letreros/retroiluminado-photo-v1.webp'
+import retroiluminado from '../assets/retro-v2.webp'
 
 const productos = [
   {
@@ -105,5 +105,6 @@ function Letreros() {
 }
 
 export default Letreros
+
 
 
