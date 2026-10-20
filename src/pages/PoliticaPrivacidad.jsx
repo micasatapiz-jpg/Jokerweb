@@ -120,7 +120,7 @@ function PoliticaPrivacidad() {
 
         <p>
           Para consultas relacionadas con esta Política de Privacidad o con el tratamiento
-          de datos personales, puede comunicarse con Joker Publicidad mediante nuestros
+          de datos personales, puede comunicarse con Joker Publicidad mediante nuestro
           correo: <a href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a>.
         </p>
 
