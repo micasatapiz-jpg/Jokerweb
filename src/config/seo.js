@@ -11,11 +11,11 @@ export const publicPages = {
   },
   "/servicios/letreros": {
     "title": "Letreros luminosos y publicitarios en Lima | Joker",
-    "description": "Diseño, fabricación e instalación de letreros LED, cajas de luz, acrílico y retroiluminados para negocios en Lima. Cotiza tu letrero con Joker."
+    "description": "Letras corpóreas iluminadas, neón LED personalizado y espejos infinitos en Lima. Logos, frases, siluetas y alas para fotos. Envíos a todo el Perú."
   },
   "/servicios/letras-3d": {
     "title": "Letras 3D y letras corpóreas en Lima | Joker",
-    "description": "Letras 3D en acrílico, PVC, MDF y metal para negocios en Lima. Letras corpóreas iluminadas y retroiluminadas para fachadas e interiores. Cotiza con Joker."
+    "description": "Letras corpóreas en PVC y acrílico con luz frontal, acrílico iluminado, PVC y aluminio retroiluminados. Fabricación a medida. Cotiza con Joker."
   },
   "/servicios/gran-formato": {
     "title": "Gigantografías y banners en Lima | Joker",
@@ -79,6 +79,7 @@ export function organizationSchema(siteUrl) {
     contactPoint: { '@type': 'ContactPoint', telephone: '+51972044482', contactType: 'customer service', availableLanguage: 'Spanish' },
   }
 }
+
 
 
 

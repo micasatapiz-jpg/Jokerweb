@@ -3,22 +3,22 @@
 export const serviceContent = {
   letreros: {
     heading: 'Letreros luminosos y publicitarios en Lima',
-    introduction: 'Diseñamos, fabricamos e instalamos letreros para fachadas, tiendas y espacios comerciales. Podemos trabajar con cajas de luz, letras LED, acrílico o retroiluminación según la identidad de tu negocio y el lugar de instalación.',
+    introduction: 'Diseñamos, fabricamos e instalamos letreros para fachadas, tiendas y espacios comerciales. Trabajamos letras corpóreas iluminadas, neón LED personalizado y espejos infinitos según el diseño y el lugar de instalación.',
     selectionTitle: 'Cómo elegir el letrero para tu negocio',
     selection: 'Para comparar opciones necesitamos conocer las dimensiones de la fachada, la distancia desde la que se leerá el nombre y si debe verse de noche. Una foto del lugar ayuda a revisar el soporte, el acceso y la ubicación de la iluminación.',
     requirements: ['Ancho y alto aproximados del espacio disponible.', 'Logo o nombre del negocio y una foto de la fachada.', 'Distrito, altura de montaje y si necesitas instalación.', 'Tipo de iluminación deseada y fecha prevista.'],
     questions: [
       ['¿Cuánto cuesta un letrero luminoso?', 'El precio depende de las medidas, materiales, iluminación, estructura y condiciones de instalación. Envíanos esos datos para preparar una cotización del proyecto.'],
-      ['¿Qué diferencia hay entre una caja de luz y letras LED?', 'La caja de luz ilumina una superficie gráfica dentro de un gabinete. Las letras LED dan volumen e iluminación a cada letra. La elección depende del diseño, la lectura y el espacio disponible.'],
+      ['¿Qué tipos de letreros fabrican?', 'Letras corpóreas en PVC y acrílico con iluminación frontal, acrílico iluminado, PVC retroiluminado y aluminio retroiluminado; además de neón LED para logos, frases, siluetas, cuadros y alas, y espejos infinitos LED.'],
       ['¿Pueden instalar el letrero?', 'Joker realiza instalación según el proyecto. Antes de confirmar el alcance se revisan ubicación, soporte, altura y acceso al lugar.'],
     ],
   },
   'letras-3d': {
     heading: 'Letras 3D y letras corpóreas en Lima',
-    introduction: 'Fabricamos letras corpóreas para fachadas, recepciones y espacios comerciales. Las opciones incluyen acrílico, PVC, MDF y metal, con alternativas iluminadas o retroiluminadas según el proyecto.',
+    introduction: 'Fabricamos letras corpóreas para fachadas, recepciones y espacios comerciales. Las variantes son PVC y acrílico con luz frontal, acrílico iluminado, PVC retroiluminado y aluminio retroiluminado.',
     selectionTitle: 'Material y luz según el lugar de uso',
-    selection: 'Elige el acabado considerando si las letras irán dentro o fuera del local, el tamaño de lectura y el soporte. El MDF se propone para interiores; para exteriores revisamos exposición, material, acabado y fijación antes de recomendar una solución.',
-    requirements: ['Texto o logo que se fabricará y ancho total deseado.', 'Material o acabado de referencia, si ya lo tienes definido.', 'Foto de la pared o fachada y distrito de instalación.', 'Indica si buscas letras sin luz, iluminadas o con halo posterior.'],
+    selection: 'Elige el acabado considerando si las letras irán dentro o fuera del local, el tamaño de lectura y el soporte. La iluminación frontal hace visible la cara de las letras; la retroiluminación crea un halo en la pared. Revisamos exposición, acabado y fijación antes de recomendar una solución.',
+    requirements: ['Texto o logo que se fabricará y ancho total deseado.', 'Material o acabado de referencia, si ya lo tienes definido.', 'Foto de la pared o fachada y distrito de instalación.', 'Indica si buscas iluminación frontal o un halo posterior.'],
     questions: [
       ['¿Cómo se cotizan las letras 3D?', 'Se consideran el diseño, número y tamaño de las piezas, profundidad, material, acabado, iluminación y montaje. Una imagen del logo y las medidas permiten comenzar.'],
       ['¿Cuál es la diferencia entre iluminadas y retroiluminadas?', 'Las letras iluminadas emiten luz por el frente; las retroiluminadas crean un halo sobre la superficie posterior. El resultado depende del diseño y de la pared donde se colocan.'],
@@ -74,3 +74,4 @@ export const serviceContent = {
     ],
   },
 }
+

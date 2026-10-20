@@ -1,7 +1,7 @@
 import eventosImage from '../assets/hero-eventos-v2.webp'
 import granFormatoImage from '../assets/hero-gran-formato-v2.webp'
-import letrerosImage from '../assets/hero-letreros-v2.webp'
-import letras3dImage from '../assets/hero-letras-3d-v2.webp'
+import letrerosImage from '../assets/catalogo-neon-logotipos.webp'
+import letras3dImage from '../assets/catalogo-pvc-acrilico-frontal.webp'
 import senaleticaImage from '../assets/hero-senaletica-v2.webp'
 import vinilesImage from '../assets/hero-viniles-v2.webp'
 import { buildWhatsAppLink } from '../utils/whatsappLink.js'
@@ -40,8 +40,8 @@ export const serviceFamilies = [
     id: 'letreros',
     number: '01',
     title: 'Letreros luminosos y publicitarios',
-    description: 'Fabricamos letreros que hacen visible tu negocio de día y de noche.',
-    includes: ['LED', 'Cajas de luz', 'Acrílico', 'Retroiluminados', 'Bastidores', 'Fachadas'],
+    description: 'Letras corpóreas iluminadas, neón LED personalizado y espejos infinitos para tu marca.',
+    includes: ['Corpóreos LED', 'Neón LED', 'Logotipos', 'Frases', 'Alas para fotos', 'Espejos infinitos'],
     cta: 'Cotizar letrero',
     message: whatsappMessages.letreros,
     image: letrerosImage,
@@ -53,7 +53,7 @@ export const serviceFamilies = [
     number: '02',
     title: 'Letras corpóreas 3D',
     description: 'Volumen, materiales y luz para que el nombre de tu marca tenga presencia.',
-    includes: ['Acrílico', 'PVC', 'MDF', 'Metal', 'Iluminadas', 'Retroiluminadas'],
+    includes: ['PVC + acrílico frontal', 'Acrílico iluminado', 'PVC retroiluminado', 'Aluminio retroiluminado'],
     cta: 'Cotizar letras 3D',
     message: whatsappMessages.letras3d,
     image: letras3dImage,
@@ -112,6 +112,7 @@ export function createWhatsAppLink({ service = 'general', message } = {}) {
   const finalMessage = message || whatsappMessages[service] || whatsappMessages.general
   return buildWhatsAppLink(siteConfig.whatsappNumber, finalMessage)
 }
+
 
 
 
