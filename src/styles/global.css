@@ -1215,3 +1215,8 @@ main {
   .contact-details { grid-template-columns: 1fr; width: calc(100% - 2.5rem); gap: 1rem; }
 }
 
+
+.product-quickview__visual figcaption { margin-top: .75rem; color: #29233e; font-size: .75rem; line-height: 1.4; text-align: center; }
+.product-quickview__copy h2 { font-size: clamp(2rem, 3.4vw, 3.5rem); line-height: 1; overflow-wrap: normal; word-break: normal; hyphens: auto; }
+@media (max-width: 640px) { .product-quickview__copy h2 { font-size: clamp(1.65rem, 8vw, 2.5rem); } }
+

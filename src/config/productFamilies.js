@@ -1,9 +1,17 @@
+import refreshedAcrylic from '../assets/acrilico-v2.webp'
+import refreshedMdf from '../assets/mdf-v2.webp'
+import refreshedMetal from '../assets/metal-v2.webp'
+import refreshedBacklit from '../assets/retro-v2.webp'
+import refreshedBanner from '../assets/banners-v2.webp'
+import refreshedFacade from '../assets/fachada-v2.webp'
+import refreshedVehicle from '../assets/rotulado-v2.webp'
+import refreshedCorporate from '../assets/corporativa-v2.webp'
 import { whatsappMessages } from './siteConfig'
-import eventosHero from '../assets/heroes/eventos-photo-v1.webp'
-import granFormatoHero from '../assets/heroes/gran-formato-photo-v1.webp'
-import letras3dHero from '../assets/heroes/letras-3d-photo-v1.webp'
-import senaleticaHero from '../assets/heroes/senaletica-photo-v1.webp'
-import vinilesHero from '../assets/heroes/viniles-photo-v1.webp'
+import eventosHero from '../assets/hero-eventos-v2.webp'
+import granFormatoHero from '../assets/hero-gran-formato-v2.webp'
+import letras3dHero from '../assets/hero-letras-3d-v2.webp'
+import senaleticaHero from '../assets/hero-senaletica-v2.webp'
+import vinilesHero from '../assets/hero-viniles-v2.webp'
 
 const productImages = {
   ...import.meta.glob('../assets/productos/letras-3d/*.webp', { eager: true, query: '?url', import: 'default' }),
@@ -13,8 +21,19 @@ const productImages = {
   ...import.meta.glob('../assets/productos/eventos/*.webp', { eager: true, query: '?url', import: 'default' }),
 }
 
+const refreshedImages = {
+  'letras-3d/acrilico-photo-v1.webp': refreshedAcrylic,
+  'letras-3d/mdf-photo-v1.webp': refreshedMdf,
+  'letras-3d/metal-photo-v1.webp': refreshedMetal,
+  'letras-3d/retroiluminadas-photo-v1.webp': refreshedBacklit,
+  'gran-formato/banners-photo-v1.webp': refreshedBanner,
+  'gran-formato/fachadas-photo-v1.webp': refreshedFacade,
+  'viniles/rotulado-photo-v1.webp': refreshedVehicle,
+  'senaletica/corporativa-photo-v1.webp': refreshedCorporate,
+}
+
 function imageFor(path) {
-  return productImages[`../assets/productos/${path}`]
+  return refreshedImages[path] || productImages[`../assets/productos/${path}`]
 }
 
 export const productFamilies = {
@@ -109,4 +128,5 @@ export function getProductFamily(slug) {
     })),
   }
 }
+
 

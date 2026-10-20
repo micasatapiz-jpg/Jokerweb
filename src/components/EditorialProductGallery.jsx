@@ -73,6 +73,7 @@ function EditorialProductGallery({ family }) {
               style={{ '--product-a': activeProduct.colorA, '--product-b': activeProduct.colorB }}
             >
               <img src={activeProduct.image} alt={activeProduct.name} />
+              <figcaption>Imagen referencial del producto</figcaption>
             </figure>
             <div className="product-quickview__copy">
               <p className="eyebrow">{family.eyebrow}</p>
@@ -93,3 +94,4 @@ function EditorialProductGallery({ family }) {
 }
 
 export default EditorialProductGallery
+
