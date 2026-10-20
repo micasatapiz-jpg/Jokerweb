@@ -16,7 +16,7 @@ export default function ServiceGuide({ slug }) {
         <div>
           <h2>Qué enviar para cotizar</h2>
           <ul>{content.requirements.map((item) => <li key={item}>{item}</li>)}</ul>
-          <p>Atención virtual desde Lima y envíos a todo el Perú. Instalaciones previa coordinación. Comparte tu ciudad y distrito para definir transporte, acceso y montaje.</p>
+          <p>Atención desde Lima y envíos a todo el Perú. Instalaciones previa coordinación. Comparte tu ciudad y distrito para definir transporte, acceso y montaje.</p>
           <WhatsAppButton mensaje={`Hola, Joker. Quiero cotizar ${content.heading}. Tengo fotos y medidas para compartir.`} origen={`guia-${slug}`} texto="Consultar mi proyecto" />
         </div>
         <div>
@@ -35,4 +35,5 @@ export default function ServiceGuide({ slug }) {
     </section>
   )
 }
+
 
