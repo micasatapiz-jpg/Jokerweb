@@ -19,7 +19,7 @@ function Footer() {
             {siteConfig.whatsappDisplay}
           </a>
           <a href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a>
-          <span>Atención virtual · 9 a. m. a 7 p. m.</span>
+          <span>Atención virtual · Lunes a sábado · 9 a. m. a 7 p. m.</span>
         </div>
 
         <nav className="footer__navigation" aria-label="Navegación del pie de página">
