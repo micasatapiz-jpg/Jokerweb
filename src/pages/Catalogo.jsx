@@ -3,7 +3,7 @@ import HeroProductCarousel from '../components/HeroProductCarousel'
 import WhatsAppButton from '../components/WhatsAppButton'
 import { serviceFamilies } from '../config/siteConfig'
 import { productFamilies } from '../config/productFamilies'
-import serviciosHero from '../assets/heroes/letreros-photo-v1.webp'
+import serviciosHero from '../assets/catalogo-neon-logotipos.webp'
 import serviciosProduccion from '../assets/editorial/servicios-produccion-v1.webp'
 
 const serviceHeroSlides = [
@@ -33,7 +33,7 @@ function Catalogo() {
           <p className="eyebrow">Publicidad e impresión en Lima</p>
           <h1 id="services-title">Soluciones publicitarias para hacer visible tu marca.</h1>
           <p>
-            Encuentra letreros, letras 3D, impresión de gran formato, viniles y señalética.
+            Encuentra letras corpóreas iluminadas, neón LED, espejos infinitos, impresión de gran formato, viniles y señalética.
             Elige una categoría o envíanos una foto del espacio: te ayudamos a definir
             materiales, medidas y acabado. La instalación se coordina según el proyecto y la ubicación.
           </p>
@@ -54,7 +54,7 @@ function Catalogo() {
         <p className="section-kicker">También hacemos</p>
         <h2 id="also-services-title">Proyectos que no caben en una sola categoría.</h2>
         <p>
-          Stickers personalizados · rotulado vehicular · neón LED · tótems publicitarios ·
+          Stickers personalizados · rotulado vehicular · tótems publicitarios ·
           proyectos especiales.
         </p>
         <WhatsAppButton servicio="especial" origen="services-special" texto="Contarnos tu idea" />
@@ -64,4 +64,5 @@ function Catalogo() {
 }
 
 export default Catalogo
+
 
