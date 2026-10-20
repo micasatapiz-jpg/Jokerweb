@@ -10,7 +10,7 @@ function Footer() {
             <strong>JOKER</strong>
             <span>Producción publicitaria</span>
           </Link>
-          <p>Diseñamos, producimos e instalamos soluciones publicitarias en Lima y Huancayo.</p>
+          <p>Letreros, letras 3D e impresión publicitaria. Envíos a todo el Perú e instalaciones previa coordinación.</p>
         </div>
 
         <div className="footer__contact">
@@ -19,7 +19,7 @@ function Footer() {
             {siteConfig.whatsappDisplay}
           </a>
           <a href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a>
-          <span>Atención comercial digital</span>
+          <span>Atención virtual · 9 a. m. a 7 p. m.</span>
         </div>
 
         <nav className="footer__navigation" aria-label="Navegación del pie de página">
@@ -28,15 +28,17 @@ function Footer() {
           <Link to="/catalogo">Servicios</Link>
           <Link to="/nosotros">Nosotros</Link>
           <Link to="/contacto">Contacto</Link>
+          <Link to="/politica-privacidad">Política de privacidad</Link>
         </nav>
       </div>
 
       <div className="footer__bottom">
         <p>© {new Date().getFullYear()} Joker Producción Publicitaria</p>
-        <p>Lima <span aria-hidden="true">·</span> Huancayo, Perú</p>
+        <p>Lima, Perú <span aria-hidden="true">·</span> Envíos a todo el país</p>
       </div>
     </footer>
   )
 }
 
 export default Footer
+

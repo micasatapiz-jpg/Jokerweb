@@ -21,7 +21,7 @@ const processSteps = [
 ]
 
 const faqs = [
-  ['¿Necesito diseño?', 'No. Basta una idea o referencia.'],
+  ['¿Debo tener un diseño?', 'No. Podemos partir de tu idea.'],
   ['¿Instalan?', 'Sí, según el proyecto.'],
   ['¿Cómo cotizo?', 'Envíanos foto y medidas.'],
 ]
@@ -109,7 +109,7 @@ function HeroPresentacion() {
 
         <div className="hero-unified__deck" aria-live="polite">
           <article ref={(element) => { panelesRef.current[0] = element }} className="hero-unified__panel hero-unified__panel--intro" aria-hidden={escena !== 0}>
-            <p>Publicidad en Lima · Letreros · Letras 3D</p>
+            <p>Letreros · Letras 3D · Impresión publicitaria</p>
             <HeroHeading as="h1" id="hero-title" lines={['HACEMOS VISIBLE', 'TU MARCA.']} className="hero-unified__headline--intro" />
             <div className="hero-unified__actions">
               <WhatsAppButton servicio="general" origen="home-unified" texto="Cotizar por WhatsApp" />
@@ -175,7 +175,7 @@ function HeroPresentacion() {
           </article>
 
           <article ref={(element) => { panelesRef.current[6] = element }} className="hero-unified__panel hero-unified__panel--contact" aria-hidden={escena !== 6}>
-            <p>Lima + Huancayo</p>
+            <p>Lima · Envíos a todo el Perú</p>
             <HeroHeading lines={['CONTACTO']} />
             <div className="hero-unified__contact-data">
               <a href={`tel:${siteConfig.phoneNumber}`}>{siteConfig.phoneDisplay}</a>
@@ -198,3 +198,4 @@ function HeroPresentacion() {
 }
 
 export default HeroPresentacion
+
