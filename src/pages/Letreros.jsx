@@ -13,7 +13,7 @@ import retroiluminado from '../assets/productos/letreros/retroiluminado-photo-v1
 const productos = [
   {
     nombre: 'Letras corpóreas LED',
-    descripcion: 'Frente acrílico translúcido, cuerpo con volumen e iluminación LED uniforme.',
+    descripcion: 'Letras con relieve y luz frontal. Define tamaño y contraste según la distancia de lectura.',
     imagen: letrasCorporeas,
     detalle: 'Volumen · Acrílico · Iluminación LED',
     colorA: '#5a2d92',
@@ -21,7 +21,7 @@ const productos = [
   },
   {
     nombre: 'Cajas de luz',
-    descripcion: 'Gabinetes luminosos para fachadas, interiores y puntos de venta.',
+    descripcion: 'Gabinetes iluminados que muestran tu logo y mensaje en una sola pieza. Medidas y fijación según el espacio.',
     imagen: cajaLuz,
     detalle: 'Iluminación uniforme · Interior o exterior',
     colorA: '#f2b705',
@@ -29,15 +29,15 @@ const productos = [
   },
   {
     nombre: 'Letreros en acrílico',
-    descripcion: 'Placas y letras cortadas con acabado limpio, moderno y durable.',
+    descripcion: 'Placas y letras para recepciones, identificaciones y fachadas. Espesor y acabado según el uso.',
     imagen: letreroAcrilico,
-    detalle: 'Corte de precisión · Acabado premium',
+    detalle: 'Material y acabado según proyecto',
     colorA: '#3c8fba',
     colorB: '#6fe0d0',
   },
   {
     nombre: 'Retroiluminados',
-    descripcion: 'Letras separadas del muro para crear un halo de luz elegante.',
+    descripcion: 'Letras con luz posterior que forma un halo sobre el muro. El color y textura de la pared influyen en el efecto.',
     imagen: retroiluminado,
     detalle: 'Halo posterior · Luz cálida o fría',
     colorA: '#d68a34',
@@ -45,15 +45,15 @@ const productos = [
   },
   {
     nombre: 'Bastidores publicitarios',
-    descripcion: 'Estructuras resistentes para montar gráficas y señalización de gran formato.',
+    descripcion: 'Estructuras para sostener y tensar gráficas. Comparte medidas y ubicación para definir soporte y montaje.',
     imagen: bastidorPublicitario,
-    detalle: 'Estructura modular · Gráfica reemplazable',
+    detalle: 'Soporte y fijación según proyecto',
     colorA: '#e85f52',
     colorB: '#304d94',
   },
   {
     nombre: 'Fachadas comerciales',
-    descripcion: 'Composición integral de revestimiento, identidad, volumen e iluminación.',
+    descripcion: 'Integra el nombre de tu negocio, revestimiento e iluminación. Envía fotos de tu fachada para revisar qué elementos necesita.',
     imagen: fachadaComercial,
     detalle: 'Diseño integral · Fabricación e instalación',
     colorA: '#4ed8c4',
@@ -79,7 +79,7 @@ function Letreros() {
       <header className="signs-hero signs-hero--editorial">
         <div className="signs-hero__copy">
           <Link to="/catalogo" className="signs-back">← Volver a servicios</Link>
-          <p className="eyebrow">Letreros luminosos y publicitarios en Lima</p>
+          <p className="eyebrow">Dale presencia a tu fachada</p>
           <h1>Letreros luminosos y publicitarios en Lima</h1>
           <p>Diseñamos, fabricamos e instalamos letreros con volumen e iluminación para negocios en Lima.</p>
           <div className="signs-hero__actions">
@@ -105,4 +105,5 @@ function Letreros() {
 }
 
 export default Letreros
+
 

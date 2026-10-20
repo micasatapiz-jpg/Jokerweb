@@ -1,3 +1,5 @@
+import { siteConfig } from '../config/siteConfig'
+
 function PoliticaPrivacidad() {
   return (
     <section className="section">
@@ -118,8 +120,8 @@ function PoliticaPrivacidad() {
 
         <p>
           Para consultas relacionadas con esta Política de Privacidad o con el tratamiento
-          de datos personales, puede comunicarse con Joker Publicidad mediante nuestros
-          canales oficiales de atención.
+          de datos personales, puede comunicarse con Joker Publicidad mediante nuestro
+          correo: <a href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a>.
         </p>
 
         <h2>10. Actualizaciones de esta política</h2>
@@ -131,7 +133,7 @@ function PoliticaPrivacidad() {
         </p>
 
         <p>
-          Última actualización: septiembre de 2026.
+          Última actualización: octubre de 2026.
         </p>
       </div>
     </section>
