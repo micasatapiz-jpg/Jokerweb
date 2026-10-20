@@ -14,7 +14,7 @@ export const siteConfig = {
   phoneDisplay: '+51 972 044 482',
   email: 'jokerstudio.pe@gmail.com',
   locations: {
-    lima: 'Lima, Perú. Atención virtual.',
+    lima: 'Lima, Perú.',
   },
   social: {
     instagram: { label: 'Instagram · @joker.publicidadcreativa', url: 'https://www.instagram.com/joker.publicidadcreativa/' },
@@ -112,4 +112,5 @@ export function createWhatsAppLink({ service = 'general', message } = {}) {
   const finalMessage = message || whatsappMessages[service] || whatsappMessages.general
   return buildWhatsAppLink(siteConfig.whatsappNumber, finalMessage)
 }
+
 

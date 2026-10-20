@@ -51,11 +51,12 @@ function Nosotros() {
       <section className="about-page__statement" aria-labelledby="about-coverage-title">
         <p className="section-kicker">Lima, Perú</p>
         <h2 id="about-coverage-title">Tu proyecto, donde lo necesitas.</h2>
-        <p>Atendemos de manera virtual de 9 a. m. a 7 p. m. y enviamos a todo el Perú. Las instalaciones se realizan previa coordinación. Trabajamos con empresas y entidades públicas; contamos con RNP.</p>
+        <p>Atendemos de lunes a sábado, de 9 a. m. a 7 p. m. y enviamos a todo el Perú. Las instalaciones se realizan previa coordinación. Trabajamos con empresas y entidades públicas; contamos con RNP.</p>
       </section>
     </section>
   )
 }
 
 export default Nosotros
+
 

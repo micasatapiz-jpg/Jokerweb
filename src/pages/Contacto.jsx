@@ -2,7 +2,6 @@ import WhatsAppButton from '../components/WhatsAppButton'
 import { siteConfig } from '../config/siteConfig'
 import contactoInstalacion from '../assets/editorial/contacto-instalacion-v2.webp'
 import contactoAsesoria from '../assets/editorial/contacto-asesoria-v1.webp'
-import contactoShowroom from '../assets/editorial/contacto-showroom-v1.webp'
 
 function Contacto() {
   return (
@@ -33,29 +32,25 @@ function Contacto() {
         <WhatsAppButton servicio="general" origen="contact" texto="Cotizar por WhatsApp" />
       </div>
 
-      <div
-        className="contact-grid contact-grid--visual"
-        style={{ '--contact-grid-image': `url(${contactoShowroom})` }}
-      >
+      <div className="contact-details" aria-label="Datos de contacto">
         <article>
           <span>WhatsApp y llamadas</span>
           <a href={`tel:${siteConfig.phoneNumber}`}>{siteConfig.phoneDisplay}</a>
-          <p>Atención virtual de lunes a sábado, de 9 a. m. a 7 p. m.</p>
+          <p>Lunes a sábado · 9 a. m. a 7 p. m.</p>
         </article>
         <article>
           <span>Correo</span>
-          <a href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a>
+          <a className="contact-details__email" href={`mailto:${siteConfig.email}`}>{siteConfig.email.split('@')[0]}<wbr />@{siteConfig.email.split('@')[1]}</a>
           <p>Empresas, cotizaciones y documentación.</p>
         </article>
         <article>
           <span>Ubicación</span>
           <strong>{siteConfig.locations.lima}</strong>
-          <p>No contamos con atención presencial abierta al público en Lima.</p>
         </article>
         <article>
           <span>Cobertura</span>
           <strong>Envíos a todo el Perú.</strong>
-          <p>Instalaciones previa coordinación. Confirma costo de transporte, acceso y montaje en tu cotización.</p>
+          <p>Instalaciones previa coordinación.</p>
         </article>
       </div>
 
@@ -89,4 +84,5 @@ function Contacto() {
 }
 
 export default Contacto
+
 

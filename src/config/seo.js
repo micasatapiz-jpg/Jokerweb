@@ -35,7 +35,7 @@ export const publicPages = {
   },
   "/nosotros": {
     "title": "Diseño y producción publicitaria para Lima | Joker",
-    "description": "Conoce a Joker: diseño, fabricación e instalación de piezas publicitarias para negocios en Lima. Atención virtual desde Lima y envíos a todo el Perú."
+    "description": "Conoce a Joker: diseño, fabricación e instalación de piezas publicitarias para negocios en Lima. Atención desde Lima y envíos a todo el Perú."
   },
   "/contacto": {
     "title": "Cotiza publicidad y letreros en Lima | Joker",
@@ -79,5 +79,6 @@ export function organizationSchema(siteUrl) {
     contactPoint: { '@type': 'ContactPoint', telephone: '+51972044482', contactType: 'customer service', availableLanguage: 'Spanish' },
   }
 }
+
 
 

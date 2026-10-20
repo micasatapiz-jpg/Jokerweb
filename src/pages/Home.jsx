@@ -20,12 +20,13 @@ function Home() {
         <p>Revisa el diseño, materiales, medidas y si el precio incluye instalación, transporte o envío. Trabajamos con el 50 % de adelanto y ofrecemos un año de garantía en trabajos de letras, según las condiciones de la cotización. Enviamos a todo el Perú; la instalación se realiza previa coordinación.</p>
         <h3>Empresas y sector público</h3>
         <p>Atendemos empresas y entidades públicas. Contamos con RNP: comparte tus especificaciones técnicas, cantidades y lugar de entrega para preparar la propuesta.</p>
-        <p>Atención virtual de 9 a. m. a 7 p. m. desde Lima, Perú. <Link to="/contacto">Contacta a Joker para coordinar tu proyecto.</Link></p>
+        <p>Lima, Perú. Horario: lunes a sábado, de 9 a. m. a 7 p. m. <Link to="/contacto">Contacta a Joker para coordinar tu proyecto.</Link></p>
       </section>
     </>
   )
 }
 
 export default Home
+
 
 
