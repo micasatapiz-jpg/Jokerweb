@@ -14,13 +14,12 @@ export const siteConfig = {
   phoneDisplay: '+51 972 044 482',
   email: 'jokerstudio.pe@gmail.com',
   locations: {
-    lima: 'Operaciones y atención comercial digital.',
-    huancayo: 'Espacio Joker dentro de Casa Tapiz — dirección por confirmar.',
+    lima: 'Lima, Perú. Atención virtual.',
   },
   social: {
-    instagram: { label: 'Instagram — próximamente', url: '' },
-    tiktok: { label: 'Joker 3D Perú', url: '' },
-    facebook: { label: 'Joker', url: '' },
+    instagram: { label: 'Instagram · @joker.publicidadcreativa', url: 'https://www.instagram.com/joker.publicidadcreativa/' },
+    tiktok: { label: 'TikTok · @jokerstudio.pe', url: 'https://www.tiktok.com/@jokerstudio.pe' },
+    facebook: { label: 'Facebook · Joker Studio Publicitario', url: 'https://www.facebook.com/Jokerstudiopublicitario' },
   },
 }
 
@@ -113,3 +112,4 @@ export function createWhatsAppLink({ service = 'general', message } = {}) {
   const finalMessage = message || whatsappMessages[service] || whatsappMessages.general
   return buildWhatsAppLink(siteConfig.whatsappNumber, finalMessage)
 }
+

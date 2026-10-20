@@ -3,7 +3,7 @@ export const DEFAULT_SITE_URL = 'https://jokerperu3d.com'
 export const publicPages = {
   "/": {
     "title": "Letreros publicitarios y letras 3D en Lima | Joker",
-    "description": "Letreros luminosos, letras 3D, gigantografías, viniles y señalética para negocios en Lima. Diseño, fabricación e instalación. Cotiza con Joker por WhatsApp."
+    "description": "Letreros luminosos, letras 3D, gigantografías, viniles y señalética para negocios en Lima. Envíos a todo el Perú. Instalación previa coordinación. Cotiza por WhatsApp."
   },
   "/catalogo": {
     "title": "Publicidad e impresión para negocios en Lima | Joker",
@@ -35,7 +35,7 @@ export const publicPages = {
   },
   "/nosotros": {
     "title": "Diseño y producción publicitaria para Lima | Joker",
-    "description": "Conoce a Joker: diseño, fabricación e instalación de piezas publicitarias para negocios en Lima. Atención comercial por WhatsApp y presencia en Huancayo."
+    "description": "Conoce a Joker: diseño, fabricación e instalación de piezas publicitarias para negocios en Lima. Atención virtual desde Lima y envíos a todo el Perú."
   },
   "/contacto": {
     "title": "Cotiza publicidad y letreros en Lima | Joker",
@@ -72,10 +72,12 @@ export function organizationSchema(siteUrl) {
     ...(siteUrl ? { url: siteUrl + '/' } : {}),
     areaServed: [
       { '@type': 'City', name: 'Lima', containedInPlace: { '@type': 'Country', name: 'Perú' } },
-      { '@type': 'City', name: 'Huancayo', containedInPlace: { '@type': 'Country', name: 'Perú' } },
+      { '@type': 'Country', name: 'Perú' },
     ],
+    sameAs: ['https://www.instagram.com/joker.publicidadcreativa/', 'https://www.tiktok.com/@jokerstudio.pe', 'https://www.facebook.com/Jokerstudiopublicitario'],
     telephone: '+51972044482', email: 'jokerstudio.pe@gmail.com',
     contactPoint: { '@type': 'ContactPoint', telephone: '+51972044482', contactType: 'customer service', availableLanguage: 'Spanish' },
   }
 }
+
 
