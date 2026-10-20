@@ -1,7 +1,4 @@
-import refreshedAcrylic from '../assets/acrilico-v2.webp'
-import refreshedMdf from '../assets/mdf-v2.webp'
-import refreshedMetal from '../assets/metal-v2.webp'
-import refreshedBacklit from '../assets/retro-v2.webp'
+import { catalogSignGroups } from './catalogoLetreros'
 import refreshedBanner from '../assets/banners-v2.webp'
 import refreshedFacade from '../assets/fachada-v2.webp'
 import refreshedVehicle from '../assets/rotulado-v2.webp'
@@ -9,7 +6,6 @@ import refreshedCorporate from '../assets/corporativa-v2.webp'
 import { whatsappMessages } from './siteConfig'
 import eventosHero from '../assets/hero-eventos-v2.webp'
 import granFormatoHero from '../assets/hero-gran-formato-v2.webp'
-import letras3dHero from '../assets/hero-letras-3d-v2.webp'
 import senaleticaHero from '../assets/hero-senaletica-v2.webp'
 import vinilesHero from '../assets/hero-viniles-v2.webp'
 
@@ -22,10 +18,6 @@ const productImages = {
 }
 
 const refreshedImages = {
-  'letras-3d/acrilico-photo-v1.webp': refreshedAcrylic,
-  'letras-3d/mdf-photo-v1.webp': refreshedMdf,
-  'letras-3d/metal-photo-v1.webp': refreshedMetal,
-  'letras-3d/retroiluminadas-photo-v1.webp': refreshedBacklit,
   'gran-formato/banners-photo-v1.webp': refreshedBanner,
   'gran-formato/fachadas-photo-v1.webp': refreshedFacade,
   'viniles/rotulado-photo-v1.webp': refreshedVehicle,
@@ -33,24 +25,17 @@ const refreshedImages = {
 }
 
 function imageFor(path) {
-  return refreshedImages[path] || productImages[`../assets/productos/${path}`]
+  return refreshedImages[path] || productImages[`../assets/productos/${path}`] || path
 }
 
 export const productFamilies = {
   'letras-3d': {
-    hero: letras3dHero,
+    hero: catalogSignGroups[0].products[0].image,
     eyebrow: 'Letras corpóreas 3D',
-    title: 'Volumen que convierte un nombre en presencia.',
-    description: 'Fabricamos letras con cuerpo, textura y luz para interiores, fachadas y espacios comerciales.',
+    title: 'Letras corpóreas con la luz y el acabado de tu marca.',
+    description: 'Fabricamos letras corpóreas en PVC y acrílico con luz frontal, acrílico iluminado, PVC retroiluminado y aluminio retroiluminado.',
     message: whatsappMessages.letras3d,
-    products: [
-      ['Acrílico', 'Letras y logos para recepciones o fachadas. El acabado opaco o translúcido se elige según el diseño y la iluminación.', 'letras-3d/acrilico-photo-v1.webp', '#ef445f', '#5536b8'],
-      ['PVC', 'Letras ligeras para nombres y logos con relieve. El espesor, acabado y uso exterior se definen según el proyecto.', 'letras-3d/pvc-photo-v1.webp', '#2468ff', '#58b7ff'],
-      ['MDF', 'Letras para interiores y decoración comercial. Evita la exposición directa a humedad o lluvia.', 'letras-3d/mdf-photo-v1.webp', '#b56f3f', '#3b251d'],
-      ['Metal', 'Letras de acero o aluminio con presencia metálica. El acabado y la protección se eligen según el ambiente.', 'letras-3d/metal-photo-v1.webp', '#9ba7b7', '#303747'],
-      ['Iluminadas', 'Letras con luz frontal para identificar tu negocio de noche. El tamaño y contraste deben funcionar también de día.', 'letras-3d/iluminadas-photo-v1.webp', '#7d2cff', '#00c8ff'],
-      ['Retroiluminadas', 'Letras con luz hacia el muro para crear un halo posterior. La separación y el color de la pared influyen en el resultado.', 'letras-3d/retroiluminadas-photo-v1.webp', '#d7a53b', '#7a4622'],
-    ],
+    products: catalogSignGroups[0].products.map((product) => [product.name, product.description, product.image, product.colorA, product.colorB, product.caption]),
   },
   'gran-formato': {
     hero: granFormatoHero,
@@ -119,14 +104,16 @@ export function getProductFamily(slug) {
   return {
     ...family,
     slug,
-    products: family.products.map(([name, description, imagePath, colorA, colorB]) => ({
+    products: family.products.map(([name, description, imagePath, colorA, colorB, caption]) => ({
       name,
       description,
       image: imageFor(imagePath),
       colorA,
       colorB,
+      caption,
     })),
   }
 }
+
 
 
