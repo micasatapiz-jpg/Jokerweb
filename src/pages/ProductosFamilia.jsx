@@ -3,6 +3,8 @@ import EditorialProductGallery from '../components/EditorialProductGallery'
 import HeroProductCarousel from '../components/HeroProductCarousel'
 import WhatsAppButton from '../components/WhatsAppButton'
 import { getProductFamily } from '../config/productFamilies'
+import { serviceContent } from '../config/serviceContent'
+import ServiceGuide from '../components/ServiceGuide'
 
 function ProductosFamilia() {
   const { familia } = useParams()
@@ -23,7 +25,7 @@ function ProductosFamilia() {
         <div className="editorial-hero__copy">
           <Link to="/catalogo" className="family-back">← Volver a servicios</Link>
           <p className="eyebrow">{family.eyebrow} en Lima</p>
-          <h1>{family.title}</h1>
+          <h1>{serviceContent[family.slug]?.heading || family.title}</h1>
           <div className="family-hero__footer">
             <p>{family.description}</p>
             <WhatsAppButton mensaje={family.message} origen={`familia-${family.slug}`} texto="Cotizar proyecto" />
@@ -32,8 +34,10 @@ function ProductosFamilia() {
       </header>
 
       <EditorialProductGallery family={family} />
+      <ServiceGuide slug={family.slug} />
     </div>
   )
 }
 
 export default ProductosFamilia
+

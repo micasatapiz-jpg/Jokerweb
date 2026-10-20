@@ -1,4 +1,4 @@
-export const DEFAULT_SITE_URL = 'https://jokeperu3d.com'
+export const DEFAULT_SITE_URL = 'https://jokerperu3d.com'
 
 export const publicPages = {
   "/": {
@@ -78,3 +78,4 @@ export function organizationSchema(siteUrl) {
     contactPoint: { '@type': 'ContactPoint', telephone: '+51972044482', contactType: 'customer service', availableLanguage: 'Spanish' },
   }
 }
+

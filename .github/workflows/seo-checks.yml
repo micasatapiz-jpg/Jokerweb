@@ -1,0 +1,48 @@
+name: SEO public site checks
+
+on:
+  push:
+    branches: [main, 'seo/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  public-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: node --test src/config/seo.test.js src/config/serviceContent.test.js
+      - run: npm run build
+      - name: Check public prerendered pages
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { readFile } from 'node:fs/promises'
+          import { serviceContent } from './src/config/serviceContent.js'
+          import { pageSeo, publicPages } from './src/config/seo.js'
+          for (const pathname of Object.keys(publicPages)) {
+            const html = await readFile(`dist${pathname === '/' ? '' : pathname}/index.html`, 'utf8')
+            assert.equal((html.match(/<h1(?:\s|>)/g) || []).length, 1, pathname)
+            assert.equal((html.match(/rel="canonical"/g) || []).length, 1, pathname)
+            assert.ok(html.includes(pageSeo(pathname, 'https://jokerperu3d.com').canonical), pathname)
+          }
+          for (const [slug, content] of Object.entries(serviceContent)) {
+            const html = await readFile(`dist/servicios/${slug}/index.html`, 'utf8')
+            assert.ok(html.includes(content.heading), slug)
+            assert.ok(html.includes(content.introduction), slug)
+            assert.equal((html.match(/<summary>/g) || []).length, 3, slug)
+          }
+          console.log('Public HTML, headings, canonical URLs and six service guides verified.')
+          NODE
