@@ -1,0 +1,22 @@
+.service-guide {
+  width: min(1120px, calc(100% - 2.5rem));
+  margin: 3rem auto 5rem;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  color: #192444;
+  background: #f8f5ef;
+  border-radius: 1.25rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.service-guide h2 { margin: 0 0 1rem; font-size: clamp(1.25rem, 2.5vw, 1.85rem); line-height: 1.25; }
+.service-guide p { margin: 0 0 1.25rem; max-width: 78ch; }
+.service-guide__columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.5rem; margin-top: 2.5rem; }
+.service-guide ul { margin: 0 0 1.5rem; padding-left: 1.25rem; }
+.service-guide li { margin-bottom: .6rem; }
+.service-guide details { border-bottom: 1px solid #c6c9d1; padding: 1rem 0; }
+.service-guide summary { cursor: pointer; font-weight: 700; }
+.service-guide details p { margin: .85rem 0 0; }
+.service-guide__related { display: grid; gap: .75rem; margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid #c6c9d1; }
+.service-guide__related a { color: #302778; text-decoration: underline; text-underline-offset: .2em; }
+.service-guide a:focus-visible, .service-guide summary:focus-visible { outline: 3px solid #7052c7; outline-offset: 4px; }
+@media (max-width: 700px) { .service-guide__columns { grid-template-columns: 1fr; gap: 2rem; } }
