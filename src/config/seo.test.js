@@ -40,7 +40,7 @@ test('build emits route-specific metadata and a sitemap containing only public U
 })
 
 test('Lima targeting uses the supplied domain without inventing a physical address', () => {
-  assert.equal(DEFAULT_SITE_URL, 'https://jokeperu3d.com')
+  assert.equal(DEFAULT_SITE_URL, 'https://jokerperu3d.com')
   for (const [path, page] of Object.entries(publicPages)) {
     if (path !== '/politica-privacidad') assert.ok(page.title.includes('Lima'), path)
   }
@@ -51,3 +51,4 @@ test('Lima targeting uses the supplied domain without inventing a physical addre
   const head = seoHead('/', DEFAULT_SITE_URL, 'public-token<&"')
   assert.ok(head.includes('name="google-site-verification" content="public-token&lt;&amp;&quot;"'))
 })
+
