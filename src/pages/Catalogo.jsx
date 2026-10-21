@@ -3,17 +3,17 @@ import HeroProductCarousel from '../components/HeroProductCarousel'
 import WhatsAppButton from '../components/WhatsAppButton'
 import { serviceFamilies } from '../config/siteConfig'
 import { productFamilies } from '../config/productFamilies'
-import serviciosHero from '../assets/catalogo-neon-logotipos.webp'
+import serviciosHero from '../assets/productos/letreros/caja-luz-photo-v1.webp'
 import serviciosProduccion from '../assets/editorial/servicios-produccion-v1.webp'
 
 const serviceHeroSlides = [
   {
-    nombre: 'Letreros luminosos',
+    nombre: 'Letreros y estructuras publicitarias',
     imagen: serviciosHero,
     colorA: '#4ed8c4',
     colorB: '#1b1a4a',
   },
-  ...Object.entries(productFamilies).map(([slug, family]) => ({
+  ...Object.entries(productFamilies).filter(([slug]) => slug !== 'letreros').map(([slug, family]) => ({
     nombre: family.eyebrow,
     imagen: family.hero,
     colorA: family.products[0]?.[3] || '#4ed8c4',
@@ -33,7 +33,7 @@ function Catalogo() {
           <p className="eyebrow">Publicidad e impresión en Lima</p>
           <h1 id="services-title">Soluciones publicitarias para hacer visible tu marca.</h1>
           <p>
-            Encuentra letras corpóreas iluminadas, neón LED, espejos infinitos, impresión de gran formato, viniles y señalética.
+            Encuentra letras y logotipos con volumen, cajas de luz, bastidores y vallas, neón LED y espejos infinitos, impresión de gran formato, viniles y señalética.
             Elige una categoría o envíanos una foto del espacio: te ayudamos a definir
             materiales, medidas y acabado. La instalación se coordina según el proyecto y la ubicación.
           </p>
@@ -64,5 +64,6 @@ function Catalogo() {
 }
 
 export default Catalogo
+
 
 

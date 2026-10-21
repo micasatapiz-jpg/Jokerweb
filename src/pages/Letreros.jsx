@@ -1,48 +1,44 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import EditorialProductGallery from '../components/EditorialProductGallery'
 import HeroProductCarousel from '../components/HeroProductCarousel'
 import WhatsAppButton from '../components/WhatsAppButton'
 import ServiceGuide from '../components/ServiceGuide'
-import { catalogSignGroups, catalogSigns } from '../config/catalogoLetreros'
+import { getProductFamily } from '../config/productFamilies'
 
 function Letreros() {
+  const { hash } = useLocation()
+  if (hash === '#corporeas') return <Navigate to="/servicios/letras-3d" replace />
+  if (hash === '#neon' || hash === '#infinitos') return <Navigate to="/servicios/neon-led" replace />
+  const family = getProductFamily('letreros')
   return (
     <div className="signs-page">
       <header className="signs-hero signs-hero--editorial">
         <div className="signs-hero__copy">
           <Link to="/catalogo" className="signs-back">← Volver a servicios</Link>
-          <p className="eyebrow">Letras, neón y luz para tu marca</p>
-          <h1>Letreros luminosos y publicitarios en Lima</h1>
-          <p>Letras corpóreas iluminadas, neón LED personalizado y espejos infinitos. Explora los materiales y efectos de luz para encontrar el letrero de tu negocio.</p>
+          <p className="eyebrow">Gráfica y estructura para tu negocio</p>
+          <h1>Letreros y estructuras publicitarias en Lima</h1>
+          <p>{family.description}</p>
           <div className="signs-hero__actions">
             <WhatsAppButton servicio="letreros" origen="letreros-catalogo" texto="Cotizar un letrero" />
-            <a href="#corporeas">Ver tipos de letreros <span aria-hidden="true">↓</span></a>
+            <a href="#estructuras">Ver tipos de letreros ↓</a>
           </div>
         </div>
         <div className="signs-hero__visual">
-          <HeroProductCarousel products={catalogSigns} label="Tipos de letreros de Joker" fit="contain" />
+          <HeroProductCarousel products={family.products} label="Cajas de luz, bastidores y vallas" fit="contain" />
         </div>
       </header>
-
-      <nav aria-label="Tipos de letreros" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', padding: '2rem clamp(1.25rem, 5vw, 5rem)' }}>
-        {catalogSignGroups.map((group) => (
-          <a key={group.id} href={`#${group.id}`} className="family-back">{group.title} ↓</a>
-        ))}
+      <section id="estructuras" style={{ scrollMarginTop: '7rem' }} aria-label="Letreros con estructura">
+        <EditorialProductGallery family={family} />
+      </section>
+      <nav className="service-guide" aria-label="Otras familias de letreros">
+        <h2>¿Buscas otra solución?</h2>
+        <p><Link to="/servicios/letras-3d">Letras y logotipos con volumen →</Link></p>
+        <p><Link to="/servicios/neon-led">Neón LED y espejos infinitos →</Link></p>
+        <p><Link to="/servicios/gran-formato">Solo impresión de gigantografías y banners →</Link></p>
       </nav>
-
-      {catalogSignGroups.map((group) => (
-        <section key={group.id} id={group.id} aria-labelledby={`heading-${group.id}`} style={{ scrollMarginTop: '7rem' }}>
-          <header style={{ padding: '2rem clamp(1.25rem, 5vw, 5rem) 0', maxWidth: '65rem' }}>
-            <p className="eyebrow">Tipos de letreros</p>
-            <h2 id={`heading-${group.id}`} style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', lineHeight: 1.12 }}>{group.title}</h2>
-            <p>{group.description}</p>
-          </header>
-          <EditorialProductGallery family={{ slug: `letreros-${group.id}`, eyebrow: group.title, products: group.products }} />
-        </section>
-      ))}
       <ServiceGuide slug="letreros" />
     </div>
   )
 }
-
 export default Letreros
+
