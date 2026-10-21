@@ -1339,3 +1339,36 @@ main {
 @media (max-width: 760px) {
   .hero-product-carousel .hero-product-carousel__slide { padding: 4rem .5rem 4.5rem; }
 }
+
+/* A readable catalogue: full product, short description, then detail. */
+.catalog-section-heading h2 { margin: 1rem 0 2rem; font-size: clamp(1.6rem, 3vw, 2.5rem); line-height: 1.15; }
+.editorial-catalog { padding-bottom: clamp(2.5rem, 5vw, 5rem); }
+.editorial-catalog__grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 2rem; }
+.editorial-product,
+.editorial-product:nth-child(3n + 1),
+.editorial-product:nth-child(3n + 3),
+.editorial-product:last-child:nth-child(odd) {
+  display: flex; flex-direction: column; grid-column: auto; min-height: 0;
+  background: #10102c; border-radius: .35rem; overflow: clip;
+}
+.editorial-product > img { position: static; width: 100%; height: clamp(15rem, 24vw, 22rem); padding: 1rem; object-fit: contain; transform: none; filter: none; }
+.editorial-product:hover > img, .editorial-product:focus-visible > img { transform: none; filter: brightness(1.06); }
+.editorial-product__veil, .editorial-product__number { display: none; }
+.editorial-product__copy { position: static; display: flex; flex-direction: column; flex: 1; gap: .75rem; padding: 1.25rem; }
+.editorial-product__copy small { font-size: .65rem; line-height: 1.5; letter-spacing: .05em; }
+.editorial-product__copy strong { font-size: clamp(1.4rem, 2.2vw, 2rem); line-height: 1.1; letter-spacing: -.025em; overflow-wrap: break-word; }
+.editorial-product__copy > .editorial-product__description,
+.editorial-product:hover .editorial-product__description,
+.editorial-product:focus-visible .editorial-product__description {
+  display: block; margin: 0; color: rgb(255 255 255 / 76%); font-size: .95rem;
+  font-weight: 400; line-height: 1.6; letter-spacing: normal; text-transform: none; transform: none;
+}
+.editorial-product__copy > span:last-child { margin-top: auto; padding-top: .75rem; }
+@media (max-width: 900px) {
+  .editorial-catalog__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+}
+@media (max-width: 560px) {
+  .editorial-catalog__grid { grid-template-columns: 1fr; }
+  .editorial-product > img { height: 17rem; }
+  .editorial-product__copy strong { font-size: 1.65rem; }
+}
