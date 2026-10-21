@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import WhatsAppButton from './WhatsAppButton'
 
-function EditorialProductGallery({ family }) {
+function EditorialProductGallery({ family, title = family.productsTitle || 'Productos y variantes' }) {
   const [activeProduct, setActiveProduct] = useState(null)
 
   useEffect(() => {
@@ -23,7 +23,8 @@ function EditorialProductGallery({ family }) {
   }, [activeProduct])
 
   return (
-    <section className="editorial-catalog" aria-label={`Productos de ${family.eyebrow}`}>
+    <section className="editorial-catalog" aria-label={`${title}: ${family.eyebrow}`}>
+      <header className="catalog-section-heading"><h2>{title}</h2></header>
       <div className="editorial-catalog__grid">
         {family.products.map((product, index) => (
           <button
@@ -40,8 +41,9 @@ function EditorialProductGallery({ family }) {
             <img src={product.image} alt="" loading={index < 2 ? 'eager' : 'lazy'} />
             <span className="editorial-product__veil" aria-hidden="true" />
             <span className="editorial-product__copy">
-              <small>{family.eyebrow}</small>
+              <small>{product.caption || 'Imagen referencial'}</small>
               <strong>{product.name}</strong>
+              <span className="editorial-product__description">{product.description}</span>
               <span>Ver producto <b aria-hidden="true">↗</b></span>
             </span>
           </button>
@@ -94,5 +96,6 @@ function EditorialProductGallery({ family }) {
 }
 
 export default EditorialProductGallery
+
 
 

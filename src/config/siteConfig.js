@@ -39,7 +39,7 @@ export const whatsappMessages = {
 const families = [
   {
     id: 'letreros',
-    number: '02',
+    number: '04',
     title: 'Letreros y estructuras publicitarias',
     description: 'Cajas de luz, letreros con bastidor y vallas publicitarias. Gráfica, soporte e instalación según tu proyecto.',
     includes: ['Cajas de luz', 'Bastidores', 'Vallas publicitarias'],
@@ -51,7 +51,7 @@ const families = [
   },
   {
     id: 'letras-3d',
-    number: '01',
+    number: '03',
     title: 'Letras corpóreas 3D',
     description: 'Todas las letras y logotipos con volumen, con o sin iluminación. Material y acabado según tu marca.',
     includes: ['PVC', 'Acrílico', 'MDF', 'Metal', 'Luz frontal', 'Retroiluminación'],
@@ -63,7 +63,7 @@ const families = [
   },
   {
     id: 'neon-led',
-    number: '03',
+    number: '07',
     title: 'Neón LED y espejos infinitos',
     description: 'Logos, frases y figuras luminosas, cuadros, alas para fotos y espejos con efecto infinito.',
     includes: ['Logotipos', 'Frases', 'Siluetas', 'Cuadros', 'Alas', 'Espejos infinitos'],
@@ -75,10 +75,10 @@ const families = [
   },
   {
     id: 'gran-formato',
-    number: '04',
-    title: 'Gigantografías y banners',
-    description: 'Impresión de gran formato para campañas, eventos, fachadas y espacios comerciales.',
-    includes: ['Banners', 'Gigantografías', 'Campañas', 'Eventos', 'Fachadas', 'Gran formato'],
+    number: '01',
+    title: 'Banners y gigantografías',
+    description: 'Impresión en lona a medida para promociones, fachadas y campañas. Acabados y sujeción según el uso.',
+    includes: ['Banners en lona', 'Gigantografías'],
     cta: 'Cotizar impresión',
     message: whatsappMessages.granFormato,
     image: granFormatoImage,
@@ -87,10 +87,10 @@ const families = [
   },
   {
     id: 'viniles',
-    number: '05',
-    title: 'Viniles publicitarios',
-    description: 'Transformamos vitrinas, muros y superficies en espacios que comunican tu marca.',
-    includes: ['Adhesivo', 'Microperforado', 'Transparente', 'Vitrinas', 'Muros', 'Rotulado'],
+    number: '02',
+    title: 'Viniles y rotulado',
+    description: 'Gráficas adhesivas para vitrinas, muros y vehículos. Elegimos el vinil según la superficie y el diseño.',
+    includes: ['Vinil impreso', 'Microperforado', 'Transparente'],
     cta: 'Cotizar vinil',
     message: whatsappMessages.viniles,
     image: vinilesImage,
@@ -99,10 +99,10 @@ const families = [
   },
   {
     id: 'senaletica',
-    number: '06',
-    title: 'Señalética',
-    description: 'Orientación clara y una presencia coherente para interiores y exteriores.',
-    includes: ['Comercial', 'Corporativa', 'Informativa', 'Interior', 'Exterior'],
+    number: '05',
+    title: 'Señalética y directorios',
+    description: 'Identifica ambientes y orienta a tus visitantes con placas, directorios, señales y tótems.',
+    includes: ['Placas', 'Directorios', 'Señales de orientación', 'Tótems'],
     cta: 'Cotizar señalética',
     message: whatsappMessages.senaletica,
     image: senaleticaImage,
@@ -110,10 +110,10 @@ const families = [
   },
   {
     id: 'eventos',
-    number: '07',
-    title: 'Publicidad para eventos',
-    description: 'Elementos listos para presentar tu marca con impacto en ferias y activaciones.',
-    includes: ['Roll screen', 'Backing', 'Displays', 'Paneles', 'Elementos promocionales'],
+    number: '06',
+    title: 'Exhibidores y gráficas para eventos',
+    description: 'Roll screens, fondos y paneles para ferias, presentaciones y activaciones. Estructura y montaje según cotización.',
+    includes: ['Roll screens', 'Backings', 'Displays', 'Paneles'],
     cta: 'Cotizar evento',
     message: whatsappMessages.eventos,
     image: eventosImage,
@@ -127,6 +127,7 @@ export function createWhatsAppLink({ service = 'general', message } = {}) {
   const finalMessage = message || whatsappMessages[service] || whatsappMessages.general
   return buildWhatsAppLink(siteConfig.whatsappNumber, finalMessage)
 }
+
 
 
 

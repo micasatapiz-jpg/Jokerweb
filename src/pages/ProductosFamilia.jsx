@@ -34,11 +34,18 @@ function ProductosFamilia() {
       </header>
 
       <EditorialProductGallery family={family} />
+      {family.applications.length > 0 && (
+        <EditorialProductGallery
+          title={family.applicationsTitle}
+          family={{ ...family, products: family.applications }}
+        />
+      )}
       <ServiceGuide slug={family.slug} />
     </div>
   )
 }
 
 export default ProductosFamilia
+
 
 

@@ -2,32 +2,28 @@ import ServiceCard from '../components/ServiceCard'
 import { serviceFamilies } from '../config/siteConfig'
 import HeroPresentacion from '../components/HeroPresentacion'
 import { Link } from 'react-router-dom'
-import { serviceContent } from '../config/serviceContent'
 import '../styles/service-guide.css'
 
 function Home() {
   return (
     <>
       <HeroPresentacion />
-      <section className="page services-page" aria-labelledby="home-sign-types">
+      <section className="page services-page" aria-labelledby="home-product-families">
         <header>
-          <p className="eyebrow">Encuentra el letrero para tu marca</p>
-          <h2 id="home-sign-types">Elige el tipo de letrero para tu proyecto</h2>
-          <p>Letras con volumen, letreros con estructura y piezas de iluminación decorativa: cada solución tiene su propia categoría.</p>
+          <p className="eyebrow">Impresión y producción publicitaria</p>
+          <h2 id="home-sign-types">¿Qué necesita tu marca?</h2>
+          <p>Desde un banner o un vinil hasta letras corpóreas y estructuras publicitarias. Encuentra el producto que necesitas y conoce sus opciones.</p>
         </header>
         <div className="services-grid services-grid--catalog">
-          {serviceFamilies.slice(0, 3).map(service => <ServiceCard key={service.id} service={service} />)}
+          {serviceFamilies.map(service => <ServiceCard key={service.id} service={service} />)}
         </div>
       </section>
       <section className="service-guide" aria-labelledby="home-services-title">
         <p className="eyebrow">Diseño, fabricación e instalación</p>
         <h2 id="home-services-title">Publicidad desde Lima para todo el Perú</h2>
-        <p>En Joker producimos letras corpóreas con y sin luz, cajas de luz, bastidores, vallas publicitarias, neón LED, espejos infinitos, gigantografías, viniles y señalética. Cuéntanos dónde irá tu proyecto, comparte fotos y medidas aproximadas y revisaremos materiales, diseño e instalación para preparar una cotización.</p>
-        <nav className="service-guide__related" aria-label="Servicios publicitarios">
-          {Object.entries(serviceContent).map(([slug, item]) => <Link key={slug} to={`/servicios/${slug}`}>{item.heading}</Link>)}
-        </nav>
+        <p>En Joker imprimimos banners, gigantografías y viniles; fabricamos letras corpóreas, letreros, señalética y exhibidores. También creamos neón LED y espejos infinitos. Cuéntanos dónde irá tu proyecto, comparte fotos y medidas aproximadas y revisaremos materiales, diseño e instalación para preparar una cotización.</p>
         <h3>¿Qué necesitamos para cotizar?</h3>
-        <p>Envíanos una foto del espacio, medidas aproximadas, ciudad y fecha deseada. Adjunta tu logo o una referencia si los tienes. Si todavía no sabes qué material elegir, cuéntanos qué quieres comunicar y te orientamos.</p>
+        <p>Indica producto, medidas, cantidad, ciudad y fecha deseada. Para trabajos con aplicación o montaje, añade fotos del espacio. Adjunta tu logo o una referencia si los tienes. Si todavía no sabes qué material elegir, cuéntanos qué quieres comunicar y te orientamos.</p>
         <h3>¿Qué debes confirmar antes de aprobar?</h3>
         <p>Revisa el diseño, materiales, medidas y si el precio incluye instalación, transporte o envío. Trabajamos con el 50 % de adelanto y ofrecemos un año de garantía en trabajos de letras, según las condiciones de la cotización. Enviamos a todo el Perú; la instalación se realiza previa coordinación.</p>
         <h3>Empresas y sector público</h3>
@@ -39,6 +35,7 @@ function Home() {
 }
 
 export default Home
+
 
 
 

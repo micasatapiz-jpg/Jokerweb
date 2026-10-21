@@ -15,8 +15,8 @@ function Nosotros() {
           <h1 id="about-title">Hacemos visible tu marca.</h1>
         </div>
         <p>
-          En Joker desarrollamos letreros, letras corpóreas, impresión de gran formato,
-          viniles y señalética para que tu negocio se reconozca desde la fachada hasta el interior.
+          En Joker imprimimos banners, gigantografías y viniles, y fabricamos letras corpóreas,
+          letreros, señalética y exhibidores para que tu negocio se reconozca desde la fachada hasta el interior.
         </p>
       </header>
 
@@ -40,7 +40,7 @@ function Nosotros() {
         <article>
           <img src={procesoProduccion} alt="Fabricación de letras corpóreas con iluminación LED" loading="lazy" decoding="async" />
           <span>02</span>
-          <div><strong>Producimos</strong><p>Definimos material, tamaño, acabado e iluminación según el uso interior o exterior de cada pieza.</p></div>
+          <div><strong>Producimos</strong><p>Imprimimos y fabricamos cada pieza según las medidas, materiales y acabados acordados. La iluminación se define cuando el producto la requiere.</p></div>
         </article>
         <article>
           <img src={procesoInstalacion} alt="Instalación de un letrero luminoso en una fachada comercial" loading="lazy" decoding="async" />
@@ -48,6 +48,7 @@ function Nosotros() {
           <div><strong>Instalamos</strong><p>Coordinamos la instalación según ubicación, acceso y superficie. Confirma su alcance e inclusión en tu cotización.</p></div>
         </article>
       </div>
+      <p className="page">Imágenes referenciales de diseño, producción e instalación.</p>
       <section className="about-page__statement" aria-labelledby="about-coverage-title">
         <p className="section-kicker">Lima, Perú</p>
         <h2 id="about-coverage-title">Tu proyecto, donde lo necesitas.</h2>
@@ -58,5 +59,6 @@ function Nosotros() {
 }
 
 export default Nosotros
+
 
 
