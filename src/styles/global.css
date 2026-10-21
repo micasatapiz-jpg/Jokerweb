@@ -1311,3 +1311,6 @@ main {
   .services-grid--catalog .service-card__media { height: 17rem; }
 }
 
+
+/* Inline quote actions keep the floating button from covering product photos. */
+.app:has(.family-page, .signs-page) > .whatsapp-button--floating { display: none; }
