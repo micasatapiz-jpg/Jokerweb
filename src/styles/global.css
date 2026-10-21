@@ -1220,3 +1220,94 @@ main {
 .product-quickview__copy h2 { font-size: clamp(2rem, 3.4vw, 3.5rem); line-height: 1; overflow-wrap: normal; word-break: normal; hyphens: auto; }
 @media (max-width: 640px) { .product-quickview__copy h2 { font-size: clamp(1.65rem, 8vw, 2.5rem); } }
 
+
+
+/* Keep complete product photographs inside a dedicated image area. */
+.family-hero--carousel.editorial-hero,
+.services-hero--carousel.editorial-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 44fr) minmax(0, 56fr);
+  align-items: stretch;
+  min-height: min(48rem, calc(100svh - 7rem));
+}
+.editorial-hero > .editorial-hero__copy {
+  grid-column: 1; grid-row: 1; order: 1;
+  position: relative; inset: auto;
+  min-width: 0; min-height: 0;
+  padding: clamp(2rem, 4vw, 4rem);
+  background: #0b0a29;
+  pointer-events: auto;
+}
+.editorial-hero > .editorial-hero__visual {
+  grid-column: 2; grid-row: 1; order: 2;
+  position: relative; inset: auto;
+  min-width: 0; min-height: 26rem;
+}
+.editorial-hero > .editorial-hero__visual::after { display: none; }
+.hero-product-carousel .hero-product-carousel__slide > img {
+  position: absolute; inset: 0;
+  box-sizing: border-box;
+  width: 100%; height: 100%;
+  max-width: 100%; max-height: 100%;
+  min-width: 0; min-height: 0;
+  margin: 0;
+  padding: 5.5rem clamp(1.25rem, 3vw, 3rem) 6rem;
+  object-fit: contain; object-position: center;
+  transform: none;
+}
+.hero-product-carousel .hero-product-carousel__meta {
+  left: 1.5rem; right: 1.5rem; bottom: 1.5rem;
+}
+.hero-product-carousel .hero-product-carousel__meta strong {
+  max-width: 82%; font-size: clamp(.95rem, 1.5vw, 1.35rem); line-height: 1.2;
+}
+.editorial-hero .family-hero__footer { width: 100%; }
+.editorial-hero .family-hero__footer > p { max-width: 100%; }
+.editorial-hero h1 { font-size: clamp(2.2rem, 4.2vw, 4.8rem); line-height: 1.05; }
+.services-grid--catalog .service-card {
+  min-height: 0; padding: 1.5rem; gap: 1.5rem;
+}
+.services-grid--catalog .service-card::after { display: none; }
+.services-grid--catalog .service-card__media {
+  position: relative; inset: auto; flex: 0 0 auto;
+  width: 100%; height: clamp(13rem, 22vw, 20rem);
+  margin: 0; background: #10102b;
+}
+.services-grid--catalog .service-card__media > img,
+.services-grid--catalog .service-card:hover .service-card__media > img {
+  width: 100%; height: 100%; padding: .75rem;
+  object-fit: contain; object-position: center; transform: none;
+}
+.services-grid--catalog .service-card__number {
+  position: absolute; top: 2rem; left: 2rem;
+}
+.services-grid--catalog .service-card__body { margin-top: 0; }
+.services-grid--catalog .service-card h3 {
+  font-size: clamp(1.5rem, 2.1vw, 2.35rem); line-height: 1.1;
+}
+@media (max-width: 760px) {
+  .family-hero--carousel.editorial-hero,
+  .services-hero--carousel.editorial-hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .editorial-hero > .editorial-hero__copy {
+    grid-column: 1; grid-row: 1;
+    padding: 2rem 1.25rem;
+    justify-content: flex-start;
+  }
+  .editorial-hero > .editorial-hero__visual {
+    grid-column: 1; grid-row: 2;
+    min-height: 0; height: clamp(20rem, 55svh, 30rem);
+  }
+  .hero-product-carousel .hero-product-carousel__slide > img {
+    padding: 4.5rem 1rem 4.75rem;
+  }
+  .hero-product-carousel .hero-product-carousel__meta {
+    display: flex; left: 1rem; right: 1rem; bottom: 1rem;
+  }
+  .editorial-hero h1 { font-size: clamp(2rem, 8vw, 3.25rem); }
+  .editorial-hero .family-hero__footer .whatsapp-button { display: inline-flex; }
+  .services-grid--catalog .service-card__media { height: 17rem; }
+}
+
