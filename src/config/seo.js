@@ -2,8 +2,8 @@ export const DEFAULT_SITE_URL = 'https://jokerperu3d.com'
 
 export const publicPages = {
   "/": {
-    "title": "Letreros publicitarios y letras 3D en Lima | Joker",
-    "description": "Letreros luminosos, letras 3D, gigantografías, viniles y señalética para negocios en Lima. Envíos a todo el Perú. Instalación previa coordinación. Cotiza por WhatsApp."
+    "title": "Impresión, banners y letras corpóreas en Lima | Joker",
+    "description": "Impresión de banners, gigantografías y viniles; letras corpóreas, letreros y señalética en Lima. Envíos a todo el Perú. Instalación previa coordinación. Cotiza por WhatsApp."
   },
   "/catalogo": {
     "title": "Publicidad e impresión para negocios en Lima | Joker",
@@ -22,7 +22,7 @@ export const publicPages = {
     "description": "Logotipos, frases, figuras, cuadros y alas en neón LED. Espejos infinitos personalizados para negocios y eventos. Cotiza tu proyecto con Joker."
   },
   "/servicios/gran-formato": {
-    "title": "Gigantografías y banners en Lima | Joker",
+    "title": "Banners y gigantografías en Lima | Joker",
     "description": "Impresión de gigantografías, banners y gráficas de gran formato para campañas, fachadas y eventos en Lima. Cotiza tu proyecto con Joker."
   },
   "/servicios/viniles": {
@@ -30,16 +30,16 @@ export const publicPages = {
     "description": "Viniles adhesivos, microperforados y transparentes para vitrinas, muros y vehículos en Lima. Diseño y rotulado para tu negocio. Cotiza con Joker."
   },
   "/servicios/senaletica": {
-    "title": "Señalética comercial y corporativa en Lima | Joker",
+    "title": "Señalética y directorios en Lima | Joker",
     "description": "Señalética informativa, corporativa y comercial para oficinas y negocios en Lima. Placas, directorios y señales para interiores y exteriores."
   },
   "/servicios/eventos": {
-    "title": "Publicidad para eventos y backings en Lima | Joker",
-    "description": "Backings, roll screens, displays, paneles y promocionales para ferias, activaciones y eventos en Lima. Diseño y producción con Joker."
+    "title": "Exhibidores y gráficas para eventos en Lima | Joker",
+    "description": "Backings, roll screens, displays y paneles para ferias, activaciones y eventos en Lima. Diseño y producción con Joker."
   },
   "/nosotros": {
     "title": "Diseño y producción publicitaria para Lima | Joker",
-    "description": "Conoce a Joker: diseño, fabricación e instalación de piezas publicitarias para negocios en Lima. Atención desde Lima y envíos a todo el Perú."
+    "description": "Conoce a Joker: diseño, fabricación e instalación de piezas publicitarias para negocios en Lima. Envíos a todo el Perú."
   },
   "/contacto": {
     "title": "Cotiza publicidad y letreros en Lima | Joker",
@@ -83,6 +83,7 @@ export function organizationSchema(siteUrl) {
     contactPoint: { '@type': 'ContactPoint', telephone: '+51972044482', contactType: 'customer service', availableLanguage: 'Spanish' },
   }
 }
+
 
 
 

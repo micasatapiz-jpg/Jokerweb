@@ -38,8 +38,8 @@ export const serviceContent = {
     ],
   },
   'gran-formato': {
-    heading: 'Gigantografías y banners en Lima',
-    introduction: 'Producimos impresiones de gran formato para campañas, fachadas y eventos. Preparamos banners, gigantografías y gráficas a medida de la superficie y del uso previsto.',
+    heading: 'Banners y gigantografías en Lima',
+    introduction: 'Producimos impresiones de gran formato para campañas, fachadas y eventos. Banners y gigantografías son formatos de impresión en lona; campañas, eventos y fachadas son sus aplicaciones. Definimos tamaño y acabado según el soporte.',
     selectionTitle: 'Una impresión pensada para su soporte',
     selection: 'El tamaño final, la distancia de lectura y el tiempo de uso ayudan a elegir el soporte y los acabados. Si la gráfica se colocará en una estructura o fachada, necesitamos revisar cómo se sujetará y si requiere montaje.',
     requirements: ['Ancho, alto y cantidad de impresiones.', 'Archivo de diseño o referencia de la pieza.', 'Uso interior o exterior y sistema de sujeción previsto.', 'Distrito de entrega o instalación y fecha del evento o campaña.'],
@@ -51,7 +51,7 @@ export const serviceContent = {
   },
   viniles: {
     heading: 'Viniles publicitarios y rotulado en Lima',
-    introduction: 'Diseñamos, imprimimos y aplicamos viniles para vitrinas, muros y vehículos comerciales. Trabajamos con opciones adhesivas, microperforadas y transparentes para comunicar tu marca en diferentes superficies.',
+    introduction: 'Diseñamos, imprimimos y aplicamos viniles para vitrinas, muros y vehículos comerciales. Separamos los tipos de vinil —impreso, microperforado y transparente— de sus aplicaciones en vitrinas, muros y rotulado vehicular.',
     selectionTitle: 'Elegir el vinil según la superficie',
     selection: 'La adherencia y el acabado dependen del material, estado y limpieza de la superficie. Para vitrinas revisamos la visibilidad deseada; en muros y vehículos necesitamos fotos para valorar textura, curvas y área de aplicación.',
     requirements: ['Medidas del vidrio, muro o zona del vehículo.', 'Fotos de la superficie y estado actual.', 'Logo, diseño o referencia y cantidad de piezas.', 'Distrito y si necesitas retiro de una gráfica anterior o aplicación.'],
@@ -62,8 +62,8 @@ export const serviceContent = {
     ],
   },
   senaletica: {
-    heading: 'Señalética comercial y corporativa en Lima',
-    introduction: 'Diseñamos y producimos señalética para orientar e informar en oficinas, negocios y espacios de atención. Preparamos placas, directorios y señales para interiores y exteriores, con una identidad visual coherente.',
+    heading: 'Señalética y directorios en Lima',
+    introduction: 'Diseñamos y producimos señalética para orientar e informar en oficinas, negocios y espacios de atención. Preparamos placas de identificación, directorios, señales de orientación y tótems para interiores y exteriores, con una identidad visual coherente.',
     selectionTitle: 'Información legible en cada espacio',
     selection: 'Una señal debe leerse desde la distancia adecuada y ubicarse donde ayude a orientarse. Para definir medidas, contraste y soporte necesitamos conocer los recorridos, los mensajes y las condiciones del lugar.',
     requirements: ['Lista de mensajes y cantidad de señales.', 'Medidas aproximadas y uso interior o exterior.', 'Logo o manual de marca, si está disponible.', 'Fotos de los puntos de colocación y distrito.'],
@@ -74,8 +74,8 @@ export const serviceContent = {
     ],
   },
   eventos: {
-    heading: 'Publicidad para eventos, backings y roll screens en Lima',
-    introduction: 'Diseñamos y producimos elementos publicitarios para ferias, activaciones y presentaciones. Las opciones incluyen backings, roll screens, displays y paneles para presentar la identidad de tu marca.',
+    heading: 'Exhibidores y gráficas para eventos en Lima',
+    introduction: 'Diseñamos y producimos elementos publicitarios para ferias, activaciones y presentaciones. Las opciones incluyen backings, roll screens, displays y paneles. Aquí encontrarás piezas con soporte; si solo necesitas imprimir la gráfica, visita Banners y gigantografías.',
     selectionTitle: 'Preparar la gráfica para el espacio del evento',
     selection: 'Considera el espacio disponible, el traslado y la forma de montaje. Para un backing revisamos el área de fotografías o escenario; para un roll screen, la portabilidad y la lectura del mensaje.',
     requirements: ['Tipo de evento, fecha y distrito.', 'Dimensiones del espacio y cantidad de piezas.', 'Logo, textos y diseño o referencias visuales.', 'Indica si necesitas estructura, traslado o montaje.'],
@@ -86,5 +86,6 @@ export const serviceContent = {
     ],
   },
 }
+
 
 
