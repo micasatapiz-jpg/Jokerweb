@@ -48,6 +48,7 @@ function Nosotros() {
           <div><strong>Instalamos</strong><p>Coordinamos la instalación según ubicación, acceso y superficie. Confirma su alcance e inclusión en tu cotización.</p></div>
         </article>
       </div>
+      <p className="page">Imágenes referenciales de diseño, producción e instalación.</p>
       <section className="about-page__statement" aria-labelledby="about-coverage-title">
         <p className="section-kicker">Lima, Perú</p>
         <h2 id="about-coverage-title">Tu proyecto, donde lo necesitas.</h2>

@@ -15,7 +15,7 @@ function Contacto() {
           <h1 id="contact-title">Tienes una idea.<br />Hagámosla visible.</h1>
         </div>
         <p>
-          Envíanos una foto, las medidas aproximadas y cuéntanos qué necesitas.
+          Indica qué producto necesitas, sus medidas y la cantidad.
           Con eso podemos comenzar a preparar tu cotización.
         </p>
       </header>
@@ -27,7 +27,7 @@ function Contacto() {
         <div>
           <span>Canal principal</span>
           <h2>Cuéntanos tu proyecto por WhatsApp.</h2>
-          <p>Comparte fotos, medidas aproximadas, ciudad y fecha en que lo necesitas. Si tienes logo o una referencia, envíalos también.</p>
+          <p>Comparte producto, medidas, cantidad, ciudad y fecha deseada. Adjunta tu diseño o logo; si necesitas aplicación o montaje, envía también fotos del espacio.</p>
         </div>
         <WhatsAppButton servicio="general" origen="contact" texto="Cotizar por WhatsApp" />
       </div>
@@ -84,5 +84,3 @@ function Contacto() {
 }
 
 export default Contacto
-
-
