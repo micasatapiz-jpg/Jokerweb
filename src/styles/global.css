@@ -1314,3 +1314,28 @@ main {
 
 /* Inline quote actions keep the floating button from covering product photos. */
 .app:has(.family-page, .signs-page) > .whatsapp-button--floating { display: none; }
+
+/* Let catalogue photographs dissolve into the hero instead of forming cards. */
+.editorial-hero > .editorial-hero__visual,
+.hero-product-carousel .hero-product-carousel__slide {
+  background: #0b0a29;
+}
+.hero-product-carousel .hero-product-carousel__slide {
+  padding: 4.5rem 1rem 5rem;
+  box-sizing: border-box;
+}
+.hero-product-carousel .hero-product-carousel__slide > img {
+  position: static;
+  width: auto; height: auto;
+  max-width: 100%; max-height: 100%;
+  margin: auto; padding: 0;
+  object-fit: contain;
+  transform: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(0deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(0deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+@media (max-width: 760px) {
+  .hero-product-carousel .hero-product-carousel__slide { padding: 4rem .5rem 4.5rem; }
+}
