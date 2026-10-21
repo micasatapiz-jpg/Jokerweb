@@ -1,3 +1,9 @@
+import cajaLuz from '../assets/productos/letreros/caja-luz-photo-v1.webp'
+import bastidor from '../assets/productos/letreros/bastidor-publicitario-photo-v1.webp'
+import fachada from '../assets/fachada-v2.webp'
+import acrilico from '../assets/acrilico-v2.webp'
+import mdf from '../assets/mdf-v2.webp'
+import metal from '../assets/metal-v2.webp'
 import { catalogSignGroups } from './catalogoLetreros'
 import refreshedBanner from '../assets/banners-v2.webp'
 import refreshedFacade from '../assets/fachada-v2.webp'
@@ -33,9 +39,35 @@ export const productFamilies = {
     hero: catalogSignGroups[0].products[0].image,
     eyebrow: 'Letras corpóreas 3D',
     title: 'Letras corpóreas con la luz y el acabado de tu marca.',
-    description: 'Fabricamos letras corpóreas en PVC y acrílico con luz frontal, acrílico iluminado, PVC retroiluminado y aluminio retroiluminado.',
+    description: 'Letras y logotipos con volumen en PVC, acrílico, MDF y metal. Opciones sin iluminación, con luz frontal o con halo posterior.',
     message: whatsappMessages.letras3d,
-    products: catalogSignGroups[0].products.map((product) => [product.name, product.description, product.image, product.colorA, product.colorB, product.caption]),
+    products: [
+      ['PVC sin iluminación', 'Letras y logotipos con relieve, pintados según el diseño. Espesor y fijación según la superficie y el lugar de uso.', 'letras-3d/pvc-photo-v1.webp', '#24cbbb', '#12122c', 'Imagen referencial del acabado'],
+      ['Acrílico sin iluminación', 'Letras y logotipos con volumen en acrílico. Color, espesor y acabado se definen según el diseño.', acrilico, '#24cbbb', '#12122c', 'Imagen referencial del acabado'],
+      ['MDF para interiores', 'Letras con relieve para interiores y decoración comercial. No se recomienda su exposición directa a lluvia o humedad.', mdf, '#24cbbb', '#12122c', 'Imagen referencial del acabado'],
+      ['Metal sin iluminación', 'Letras y logotipos con volumen en metal. Material, acabado y protección se especifican según el ambiente.', metal, '#24cbbb', '#12122c', 'Imagen referencial del acabado'],
+      ...catalogSignGroups[0].products.map((product) => [product.name, product.description, product.image, product.colorA, product.colorB, product.caption]),
+    ],
+  },
+  letreros: {
+    hero: cajaLuz,
+    eyebrow: 'Letreros y estructuras publicitarias',
+    title: 'Cajas de luz, bastidores y vallas para tu publicidad.',
+    description: 'Letreros con un frente gráfico y una estructura de soporte: cajas de luz, bastidores y vallas publicitarias. Las letras y logotipos con volumen se encuentran en Letras corpóreas 3D.',
+    message: whatsappMessages.letreros,
+    products: [
+      ['Cajas de luz', 'Cajones luminosos con un frente gráfico e iluminación interior. Medidas, material del frente y sistema de montaje según el proyecto.', cajaLuz, '#24cbbb', '#12122c', 'Imagen referencial del producto'],
+      ['Letreros con bastidor', 'Gráficas montadas sobre un bastidor para fachadas y anuncios. La cotización distingue impresión, estructura y montaje.', bastidor, '#24cbbb', '#12122c', 'Imagen referencial del producto'],
+      ['Vallas publicitarias', 'Anuncios de gran formato con estructura de soporte. Revisamos ubicación, dimensiones, altura y condiciones de montaje antes de cotizar.', fachada, '#24cbbb', '#12122c', 'Imagen referencial de gráfica exterior; la estructura se define por proyecto'],
+    ],
+  },
+  'neon-led': {
+    hero: catalogSignGroups[1].products[0].image,
+    eyebrow: 'Neón LED y espejos infinitos',
+    title: 'Trazos de luz y efectos para tu espacio.',
+    description: 'Logotipos, frases, siluetas, cuadros y alas en neón LED, además de espejos con efecto infinito. Una familia de iluminación decorativa y de marca.',
+    message: 'Hola, Joker. Quisiera cotizar neón LED o un espejo infinito.',
+    products: catalogSignGroups.slice(1).flatMap(group => group.products).map(product => [product.name, product.description, product.image, product.colorA, product.colorB, product.caption]),
   },
   'gran-formato': {
     hero: granFormatoHero,
@@ -114,6 +146,7 @@ export function getProductFamily(slug) {
     })),
   }
 }
+
 
 
 

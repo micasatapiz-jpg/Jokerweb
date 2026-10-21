@@ -10,12 +10,16 @@ export const publicPages = {
     "description": "Servicios de publicidad en Lima: letreros, letras corpóreas 3D, gigantografías, banners, viniles, señalética y piezas para eventos. Cotiza con Joker."
   },
   "/servicios/letreros": {
-    "title": "Letreros luminosos y publicitarios en Lima | Joker",
-    "description": "Letras corpóreas iluminadas, neón LED personalizado y espejos infinitos en Lima. Logos, frases, siluetas y alas para fotos. Envíos a todo el Perú."
+    "title": "Cajas de luz, bastidores y vallas en Lima | Joker",
+    "description": "Cajas de luz, letreros con bastidor y vallas publicitarias en Lima. Gráfica, estructura y montaje según el proyecto. Envíos a todo el Perú."
   },
   "/servicios/letras-3d": {
     "title": "Letras 3D y letras corpóreas en Lima | Joker",
-    "description": "Letras corpóreas en PVC y acrílico con luz frontal, acrílico iluminado, PVC y aluminio retroiluminados. Fabricación a medida. Cotiza con Joker."
+    "description": "Letras y logotipos con volumen en PVC, acrílico, MDF y metal. Sin iluminación, con luz frontal o retroiluminación. Fabricación a medida en Lima."
+  },
+  "/servicios/neon-led": {
+    "title": "Neón LED y espejos infinitos en Lima | Joker",
+    "description": "Logotipos, frases, figuras, cuadros y alas en neón LED. Espejos infinitos personalizados para negocios y eventos. Cotiza tu proyecto con Joker."
   },
   "/servicios/gran-formato": {
     "title": "Gigantografías y banners en Lima | Joker",
@@ -79,6 +83,7 @@ export function organizationSchema(siteUrl) {
     contactPoint: { '@type': 'ContactPoint', telephone: '+51972044482', contactType: 'customer service', availableLanguage: 'Spanish' },
   }
 }
+
 
 
 

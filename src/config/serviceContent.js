@@ -2,27 +2,39 @@
 // are confirmed for each project rather than promised by this content.
 export const serviceContent = {
   letreros: {
-    heading: 'Letreros luminosos y publicitarios en Lima',
-    introduction: 'Diseñamos, fabricamos e instalamos letreros para fachadas, tiendas y espacios comerciales. Trabajamos letras corpóreas iluminadas, neón LED personalizado y espejos infinitos según el diseño y el lugar de instalación.',
+    heading: 'Letreros y estructuras publicitarias en Lima',
+    introduction: 'Fabricamos cajas de luz, letreros con bastidor y vallas publicitarias para fachadas y campañas. Definimos la gráfica, el soporte y la iluminación según el espacio. Las letras y logotipos con volumen tienen su propia categoría de Letras corpóreas 3D.',
     selectionTitle: 'Cómo elegir el letrero para tu negocio',
     selection: 'Para comparar opciones necesitamos conocer las dimensiones de la fachada, la distancia desde la que se leerá el nombre y si debe verse de noche. Una foto del lugar ayuda a revisar el soporte, el acceso y la ubicación de la iluminación.',
     requirements: ['Ancho y alto aproximados del espacio disponible.', 'Logo o nombre del negocio y una foto de la fachada.', 'Distrito, altura de montaje y si necesitas instalación.', 'Tipo de iluminación deseada y fecha prevista.'],
     questions: [
       ['¿Cuánto cuesta un letrero luminoso?', 'El precio depende de las medidas, materiales, iluminación, estructura y condiciones de instalación. Envíanos esos datos para preparar una cotización del proyecto.'],
-      ['¿Qué tipos de letreros fabrican?', 'Letras corpóreas en PVC y acrílico con iluminación frontal, acrílico iluminado, PVC retroiluminado y aluminio retroiluminado; además de neón LED para logos, frases, siluetas, cuadros y alas, y espejos infinitos LED.'],
+      ['¿Qué tipos de letreros fabrican?', 'En esta categoría encontrarás cajas de luz, letreros sobre bastidores y vallas publicitarias. La propuesta detalla gráfica, estructura, iluminación y montaje según corresponda.'],
       ['¿Pueden instalar el letrero?', 'Joker realiza instalación según el proyecto. Antes de confirmar el alcance se revisan ubicación, soporte, altura y acceso al lugar.'],
     ],
   },
   'letras-3d': {
     heading: 'Letras 3D y letras corpóreas en Lima',
-    introduction: 'Fabricamos letras corpóreas para fachadas, recepciones y espacios comerciales. Las variantes son PVC y acrílico con luz frontal, acrílico iluminado, PVC retroiluminado y aluminio retroiluminado.',
+    introduction: 'Fabricamos letras y logotipos con volumen para fachadas, recepciones y espacios comerciales. Incluimos opciones sin luz en PVC, acrílico, MDF y metal, además de las variantes con luz frontal y retroiluminadas del catálogo.',
     selectionTitle: 'Material y luz según el lugar de uso',
     selection: 'Elige el acabado considerando si las letras irán dentro o fuera del local, el tamaño de lectura y el soporte. La iluminación frontal hace visible la cara de las letras; la retroiluminación crea un halo en la pared. Revisamos exposición, acabado y fijación antes de recomendar una solución.',
     requirements: ['Texto o logo que se fabricará y ancho total deseado.', 'Material o acabado de referencia, si ya lo tienes definido.', 'Foto de la pared o fachada y distrito de instalación.', 'Indica si buscas iluminación frontal o un halo posterior.'],
     questions: [
       ['¿Cómo se cotizan las letras 3D?', 'Se consideran el diseño, número y tamaño de las piezas, profundidad, material, acabado, iluminación y montaje. Una imagen del logo y las medidas permiten comenzar.'],
-      ['¿Cuál es la diferencia entre iluminadas y retroiluminadas?', 'Las letras iluminadas emiten luz por el frente; las retroiluminadas crean un halo sobre la superficie posterior. El resultado depende del diseño y de la pared donde se colocan.'],
+      ['¿Las letras corpóreas siempre llevan iluminación?', 'No. Una letra corpórea se define por su volumen, no por llevar luz. Puede ser sin iluminación, emitir luz frontal o crear un halo posterior mediante retroiluminación.'],
       ['¿Las letras corpóreas sirven para exteriores?', 'Depende del material y de las condiciones de exposición. Comparte una foto del lugar para evaluar acabado, fijación e iluminación adecuados.'],
+    ],
+  },
+  'neon-led': {
+    heading: 'Neón LED y espejos infinitos en Lima',
+    introduction: 'Personalizamos logotipos, frases, siluetas, cuadros y alas en neón LED para negocios y eventos. También producimos espejos con efecto infinito. Separamos estas piezas de las letras corpóreas y de los letreros con estructura para facilitar tu elección.',
+    selectionTitle: 'Elige el efecto de luz para tu espacio',
+    selection: 'Comparte el diseño, las medidas y una foto del lugar. Revisamos el recorrido del neón, el color, el soporte y la ubicación de la conexión eléctrica. En espejos infinitos definimos forma, profundidad y personalización según el proyecto.',
+    requirements: ['Logo, texto o figura que deseas reproducir.', 'Ancho y alto aproximados.', 'Foto del espacio e indicación de uso interior o exterior.', 'Ciudad, fecha deseada y si necesitas instalación.'],
+    questions: [
+      ['¿Pueden hacer mi logo en neón LED?', 'Sí. Revisamos el diseño y adaptamos los trazos, medidas y colores para mantener una buena lectura. Comparte tu logo y una foto del espacio.'],
+      ['¿Qué es un espejo infinito LED?', 'Es una pieza con espejos e iluminación que produce un efecto visual de profundidad. La forma, el tamaño y el diseño se definen para cada pedido.'],
+      ['¿El neón LED sirve para exteriores?', 'El uso exterior debe evaluarse según exposición, alimentación, soporte y protección. Indica dónde se instalará antes de definir materiales y montaje.'],
     ],
   },
   'gran-formato': {
@@ -74,4 +86,5 @@ export const serviceContent = {
     ],
   },
 }
+
 
