@@ -10,7 +10,7 @@ function Footer() {
             <strong>JOKER</strong>
             <span>Producción publicitaria</span>
           </Link>
-          <p>Letreros, letras 3D e impresión publicitaria. Envíos a todo el Perú e instalaciones previa coordinación.</p>
+          <p>Banners, gigantografías, viniles, letras corpóreas y letreros. Envíos a todo el Perú e instalaciones previa coordinación.</p>
         </div>
 
         <div className="footer__contact">
@@ -41,5 +41,6 @@ function Footer() {
 }
 
 export default Footer
+
 
 

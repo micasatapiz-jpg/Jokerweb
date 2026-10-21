@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import WhatsAppButton from './WhatsAppButton'
 
 const links = [
@@ -10,6 +10,7 @@ const links = [
 ]
 
 function Navbar() {
+  const { pathname } = useLocation()
   const [menuAbierto, setMenuAbierto] = useState(false)
   const cerrarMenu = () => setMenuAbierto(false)
 
@@ -43,7 +44,7 @@ function Navbar() {
               <li key={to}>
                 <NavLink
                   to={to}
-                  className={({ isActive }) => (isActive ? 'active' : undefined)}
+                  className={({ isActive }) => (isActive || (to === '/catalogo' && pathname.startsWith('/servicios/')) ? 'active' : undefined)}
                   end={to === '/'}
                   onClick={cerrarMenu}
                 >
@@ -66,3 +67,4 @@ function Navbar() {
 }
 
 export default Navbar
+
