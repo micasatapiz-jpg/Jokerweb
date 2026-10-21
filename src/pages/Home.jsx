@@ -1,3 +1,5 @@
+import ServiceCard from '../components/ServiceCard'
+import { catalogSignGroups } from '../config/catalogoLetreros'
 import HeroPresentacion from '../components/HeroPresentacion'
 import { Link } from 'react-router-dom'
 import { serviceContent } from '../config/serviceContent'
@@ -7,10 +9,32 @@ function Home() {
   return (
     <>
       <HeroPresentacion />
+      <section className="page services-page" aria-labelledby="home-sign-types">
+        <header>
+          <p className="eyebrow">Encuentra el letrero para tu marca</p>
+          <h2 id="home-sign-types">Letras corpóreas, neón LED y espejos infinitos</h2>
+          <p>Explora nuestros tipos de letreros, compara materiales y efectos de luz y cotiza la variante que mejor se adapte a tu espacio.</p>
+        </header>
+        <div className="services-grid services-grid--catalog">
+          {catalogSignGroups.map((group, index) => (
+            <ServiceCard key={group.id} service={{
+              id: `inicio-${group.id}`,
+              number: String(index + 1).padStart(2, '0'),
+              title: group.title,
+              description: group.description,
+              image: group.products[0].image,
+              includes: group.products.map((product) => product.name),
+              detailPath: `/servicios/letreros#${group.id}`,
+              message: `Hola, Joker. Quisiera cotizar ${group.title}.`,
+              cta: 'Cotizar este letrero',
+            }} />
+          ))}
+        </div>
+      </section>
       <section className="service-guide" aria-labelledby="home-services-title">
         <p className="eyebrow">Diseño, fabricación e instalación</p>
         <h2 id="home-services-title">Publicidad desde Lima para todo el Perú</h2>
-        <p>En Joker producimos letreros luminosos, letras corpóreas 3D, gigantografías, viniles y señalética. Cuéntanos dónde irá tu proyecto, comparte fotos y medidas aproximadas y revisaremos materiales, diseño e instalación para preparar una cotización.</p>
+        <p>En Joker producimos letras corpóreas iluminadas, neón LED personalizado, espejos infinitos LED, gigantografías, viniles y señalética. Cuéntanos dónde irá tu proyecto, comparte fotos y medidas aproximadas y revisaremos materiales, diseño e instalación para preparar una cotización.</p>
         <nav className="service-guide__related" aria-label="Servicios publicitarios">
           {Object.entries(serviceContent).map(([slug, item]) => <Link key={slug} to={`/servicios/${slug}`}>{item.heading}</Link>)}
         </nav>
@@ -27,6 +51,7 @@ function Home() {
 }
 
 export default Home
+
 
 
 

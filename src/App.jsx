@@ -22,11 +22,16 @@ const PanelCotizaciones = salesEnabled ? lazy(() => import('./pages/PanelCotizac
 const PropuestaVisual = salesEnabled ? lazy(() => import('./pages/PropuestaVisual')) : null
 
 function ScrollToTop() {
-  const { pathname } = useLocation()
+  const { pathname, hash } = useLocation()
 
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [pathname])
+    const frame = window.requestAnimationFrame(() => {
+      const target = hash ? document.getElementById(hash.slice(1)) : null
+      if (target) target.scrollIntoView({ block: 'start' })
+      else window.scrollTo(0, 0)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [pathname, hash])
 
   return null
 }
@@ -70,3 +75,4 @@ function App() {
 }
 
 export default App
+
