@@ -4,7 +4,7 @@ import { serviceContent } from './serviceContent.js'
 import { publicPages } from './seo.js'
 
 test('every service has buying guidance, valid related destinations and distinct questions', () => {
-  assert.equal(Object.keys(serviceContent).length, 6)
+  assert.equal(Object.keys(serviceContent).length, 7)
   const questions = new Set()
   for (const [slug, content] of Object.entries(serviceContent)) {
     assert.ok(publicPages[`/servicios/${slug}`], slug)
@@ -19,3 +19,4 @@ test('every service has buying guidance, valid related destinations and distinct
     }
   }
 })
+
