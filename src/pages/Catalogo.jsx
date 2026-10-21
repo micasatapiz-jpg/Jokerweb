@@ -2,25 +2,14 @@ import ServiceCard from '../components/ServiceCard'
 import HeroProductCarousel from '../components/HeroProductCarousel'
 import WhatsAppButton from '../components/WhatsAppButton'
 import { serviceFamilies } from '../config/siteConfig'
-import { productFamilies } from '../config/productFamilies'
-import serviciosHero from '../assets/productos/letreros/caja-luz-photo-v1.webp'
 import serviciosProduccion from '../assets/editorial/servicios-produccion-v1.webp'
 
-const serviceHeroSlides = [
-  {
-    nombre: 'Letreros y estructuras publicitarias',
-    imagen: serviciosHero,
-    colorA: '#4ed8c4',
-    colorB: '#1b1a4a',
-  },
-  ...Object.entries(productFamilies).filter(([slug]) => slug !== 'letreros').map(([slug, family]) => ({
-    nombre: family.eyebrow,
-    imagen: family.hero,
-    colorA: family.products[0]?.[3] || '#4ed8c4',
-    colorB: family.products[0]?.[4] || '#1b1a4a',
-    slug,
-  })),
-]
+const serviceHeroSlides = serviceFamilies.map(service => ({
+  nombre: service.title,
+  imagen: service.image,
+  colorA: '#4ed8c4',
+  colorB: '#1b1a4a',
+}))
 
 function Catalogo() {
   return (
@@ -31,9 +20,9 @@ function Catalogo() {
         </div>
         <div className="editorial-hero__copy">
           <p className="eyebrow">Publicidad e impresión en Lima</p>
-          <h1 id="services-title">Soluciones publicitarias para hacer visible tu marca.</h1>
+          <h1 id="services-title">Impresión y producción para tu marca.</h1>
           <p>
-            Encuentra letras y logotipos con volumen, cajas de luz, bastidores y vallas, neón LED y espejos infinitos, impresión de gran formato, viniles y señalética.
+            Imprimimos banners, gigantografías y viniles. Fabricamos letras corpóreas, letreros, señalética y exhibidores, además de piezas en neón LED.
             Elige una categoría o envíanos una foto del espacio: te ayudamos a definir
             materiales, medidas y acabado. La instalación se coordina según el proyecto y la ubicación.
           </p>
@@ -51,11 +40,10 @@ function Catalogo() {
         aria-labelledby="also-services-title"
         style={{ '--section-image': `url(${serviciosProduccion})` }}
       >
-        <p className="section-kicker">También hacemos</p>
-        <h2 id="also-services-title">Proyectos que no caben en una sola categoría.</h2>
+        <p className="section-kicker">Soluciones a medida</p>
+        <h2 id="also-services-title">Combina productos para un mismo proyecto.</h2>
         <p>
-          Stickers personalizados · rotulado vehicular · tótems publicitarios ·
-          proyectos especiales.
+          Para una apertura puedes combinar letras corpóreas, vinil de vitrina y un banner promocional. Cuéntanos qué necesitas y preparamos una propuesta con cada pieza, sus medidas y su instalación.
         </p>
         <WhatsAppButton servicio="especial" origen="services-special" texto="Contarnos tu idea" />
       </aside>
@@ -64,6 +52,7 @@ function Catalogo() {
 }
 
 export default Catalogo
+
 
 
 
