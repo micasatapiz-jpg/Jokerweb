@@ -49,6 +49,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
   const [listo, setListo] = useState(false)
   const [mostrarCarga, setMostrarCarga] = useState(false)
   const [preparados, setPreparados] = useState(0)
+  const [objetivoCarga, setObjetivoCarga] = useState(0)
   const [errorCarga, setErrorCarga] = useState(false)
   const [cargaDiscreta, setCargaDiscreta] = useState(false)
   const [usarFramesMoviles, setUsarFramesMoviles] = useState(() => typeof window !== 'undefined' && window.matchMedia(CONSULTA_MOVIL).matches)
@@ -118,11 +119,13 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     let dibujoPendiente = 0
     let introActiva = false
     let previewPending = false
+    let frameDeseado = 0
     const movimientoReducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     setListo(false)
     setMostrarCarga(false)
     setPreparados(0)
+    setObjetivoCarga(0)
     setErrorCarga(false)
     setCargaDiscreta(false)
 
@@ -163,13 +166,15 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
 
     const mostrarFrame = (indice) => {
       const indiceSeguro = limitar(Math.round(indice), 0, frames.length - 1)
+      frameDeseado = indiceSeguro
+      const disponible = ready ? almacen.nearestAvailable(indiceSeguro) : indiceSeguro
       const anterior = frameSolicitadoRef.current
-      frameSolicitadoRef.current = indiceSeguro
+      frameSolicitadoRef.current = disponible
       canvas.dataset.frame = String(indiceSeguro + 1)
       if (!ready) return
       programarDibujo()
-      if (anterior === indiceSeguro && almacen.images.has(indiceSeguro)) return
-      almacen.prepare(indiceSeguro).then(programarDibujo).catch(() => {
+      if (anterior === disponible && almacen.images.has(disponible)) return
+      almacen.prepare(disponible).then(programarDibujo).catch(() => {
         if (vivo) { setErrorCarga(true); setMostrarCarga(true) }
       })
     }
@@ -247,9 +252,15 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
     observarPantalla.observe(pantalla)
 
     const prepare = async () => {
+      let resto = null
       try {
         const onProgress = (cantidad) => {
           if (!vivo) return
+          if (ready) {
+            // A later pack arrived: replace the fallback frame if it was waiting for it.
+            mostrarFrame(frameDeseado)
+            return
+          }
           setPreparados(cantidad)
           const destino = frameSolicitadoRef.current
           // On repeat visits, paint the current cached frame as soon as its pack
@@ -272,14 +283,21 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
           frameSolicitadoRef.current = frames.length - 1
           await almacen.preload(onProgress, [frames.length - 1])
         } else if (paquetes) {
-          await almacen.preloadPacked(paquetes, onProgress)
+          // Show the page as soon as the pack for the current frame is ready
+          // (about 2 MB) and download the rest of the sequence behind it.
+          const actual = frameSolicitadoRef.current
+          const inicial = paquetes.find((pack) => actual >= pack.start && actual < pack.start + pack.count) ?? paquetes[0]
+          setObjetivoCarga(inicial.count)
+          await almacen.loadPacks([inicial], onProgress)
+          resto = almacen.preloadPacked(paquetes.filter((pack) => pack !== inicial), onProgress)
+          resto.catch(() => {})
         } else {
           await almacen.preload(onProgress)
         }
         do {
-          const destino = frameSolicitadoRef.current
+          const destino = almacen.nearestAvailable(frameSolicitadoRef.current)
           await almacen.prepare(destino)
-          if (destino === frameSolicitadoRef.current) break
+          if (destino === almacen.nearestAvailable(frameSolicitadoRef.current)) break
         } while (vivo)
         if (!vivo) return
         ready = true
@@ -287,11 +305,15 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
         dibujarSolicitado()
         setListo(true)
         setCargaDiscreta(false)
-        rememberSequenceIntro()
         ScrollTrigger.refresh()
+        await resto
+        if (!vivo) return
+        rememberSequenceIntro()
       } catch (error) {
         if (!vivo) return
         console.error('No se pudo preparar la animación.', error)
+        // Frames already on screen keep working; the intro is retried next visit.
+        if (ready) return
         almacen.dispose()
         setErrorCarga(true)
       }
@@ -409,7 +431,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
         {(mostrarCarga || errorCarga) && (
           <SequenceLoader
             ready={listo && !errorCarga}
-            progress={preparados / (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : frames.length)}
+            progress={preparados / (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : (objetivoCarga || frames.length))}
             error={errorCarga}
             onRetry={() => window.location.reload()}
             onComplete={ocultarCarga}
@@ -417,7 +439,7 @@ const ImageSequenceViewer = forwardRef(function ImageSequenceViewer(
         )}
         {cargaDiscreta && !listo && !errorCarga && (
           <span className="image-sequence__cache-status" role="status">
-            Cargando contenido · {Math.round(preparados / frames.length * 100)}%
+            Cargando contenido · {Math.round(Math.min(preparados / (objetivoCarga || frames.length), 1) * 100)}%
           </span>
         )}
 

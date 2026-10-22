@@ -8,6 +8,7 @@ import Catalogo from './pages/Catalogo'
 import Contacto from './pages/Contacto'
 import Home from './pages/Home'
 import Letreros from './pages/Letreros'
+import NoEncontrado from './pages/NoEncontrado'
 import Nosotros from './pages/Nosotros'
 import ProductosFamilia from './pages/ProductosFamilia'
 import PoliticaPrivacidad from './pages/PoliticaPrivacidad'
@@ -62,6 +63,7 @@ function App() {
             <Route path="/app/cotizaciones/:id" element={<DetalleCotizacion />} />
           </>}
           <Route path="/politica-privacidad" element={<PoliticaPrivacidad />} />
+          <Route path="*" element={<NoEncontrado />} />
         </Routes></Suspense>
       </main>
       {!isSalesApp && <Footer />}

@@ -43,4 +43,12 @@
 			precompressed gzip
 		}
 	}
+
+	handle_errors 404 {
+		header Cache-Control "no-cache"
+		rewrite * /404.html
+		file_server {
+			precompressed gzip
+		}
+	}
 }

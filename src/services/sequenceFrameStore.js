@@ -57,22 +57,33 @@ export class SequenceFrameStore {
     await Promise.all(Array.from({ length: Math.min(4, indices.length) }, worker))
   }
 
-  async preloadPacked(descriptors, onProgress) {
+  async loadPacks(descriptors, onProgress) {
     let next = 0
-    let completed = 0
     const worker = async () => {
       while (next < descriptors.length && !this.disposed) {
         const descriptor = descriptors[next++]
         const blobs = await loadFramePack(descriptor, this.controller.signal)
         if (this.disposed) return
         blobs.forEach((blob, index) => this.blobs.set(descriptor.start + index, blob))
-        onProgress?.(completed += blobs.length)
+        onProgress?.(this.blobs.size)
       }
     }
     await Promise.all(Array.from({ length: Math.min(4, descriptors.length) }, worker))
+  }
+
+  async preloadPacked(descriptors, onProgress) {
+    await this.loadPacks(descriptors, onProgress)
     if (!this.disposed && this.blobs.size !== this.urls.length) {
       throw new Error('Sequence packs do not contain every frame')
     }
+  }
+
+  // While later packs are still downloading, show the closest earlier frame.
+  nearestAvailable(index) {
+    for (let frame = index; frame >= 0; frame--) {
+      if (this.blobs.has(frame)) return frame
+    }
+    return index
   }
 
   prepare(index) {

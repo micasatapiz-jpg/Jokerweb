@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { normalizeSiteUrl, organizationSchema, pageSeo, publicPages } from '../src/config/seo.js'
 
 const escape = (text) => text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
+export const NOT_FOUND_PATH = '/404'
 const markers = /<!-- joker-seo:start -->[\s\S]*?<!-- joker-seo:end -->/
 
 export function seoHead(pathname, siteUrl, verification = '') {
@@ -40,6 +41,8 @@ export function seoPlugin(url, verification = '') {
         await mkdir(directory, { recursive: true })
         await writeFile(resolve(directory, 'index.html'), template.replace(markers, seoHead(path, siteUrl, verification)))
       }
+      // Served by Caddy for unknown paths; unknown routes are noindex.
+      await writeFile(resolve(output, '404.html'), template.replace(markers, seoHead(NOT_FOUND_PATH, siteUrl, verification)))
       const robots = 'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /app\nDisallow: /propuesta-visual\n'
       await writeFile(resolve(output, 'robots.txt'), robots + (siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''))
       if (siteUrl) {
